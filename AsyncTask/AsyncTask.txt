@@ -1,0 +1,90 @@
+
+1. AsyncTask类
+   private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
+   private static final int CORE_POOL_SIZE = Math.max(2, Math.min(CPU_COUNT - 1, 4));
+   private static final int MAXIMUM_POOL_SIZE = CPU_COUNT * 2 + 1;
+   private static final int KEEP_ALIVE_SECONDS = 30;
+   private static final ThreadFactory sThreadFactory = new ThreadFactory()
+   private static final BlockingQueue<Runnable> sPoolWorkQueue =new LinkedBlockingQueue<Runnable>(128);
+   public static final Executor THREAD_POOL_EXECUTOR;
+   ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(
+                CORE_POOL_SIZE, MAXIMUM_POOL_SIZE, KEEP_ALIVE_SECONDS, TimeUnit.SECONDS,
+                sPoolWorkQueue, sThreadFactory);
+   threadPoolExecutor.allowCoreThreadTimeOut(true);
+   THREAD_POOL_EXECUTOR = threadPoolExecutor;
+   public static final Executor SERIAL_EXECUTOR = new SerialExecutor();
+   private static final int MESSAGE_POST_RESULT = 0x1;
+   private static final int MESSAGE_POST_PROGRESS = 0x2;
+   private static volatile Executor sDefaultExecutor = SERIAL_EXECUTOR;
+   private static InternalHandler sHandler;
+   private final WorkerRunnable<Params, Result> mWorker;   //WorkerRunnable继承Callable类 静态内部类
+   private final FutureTask<Result> mFuture;
+   private volatile Status mStatus = Status.PENDING; 
+   private final AtomicBoolean mCancelled = new AtomicBoolean();
+   private final AtomicBoolean mTaskInvoked = new AtomicBoolean();
+   
+   构造函数
+   -> 创建WorkerRunnable实例 mWorker = new WorkerRunnable<Params, Result>(); 
+      重写call方法， call方法调用doInBackground(), doInBackground()方法执行完调用postResult(result);
+   ->创建 mFuture对象实例， mFuture = new FutureTask<Result>(mWorker)， 重写FutureTask.done()方法，
+     调用postResultIfNotInvoked(get());‘
+	 
+	 
+2. private Result postResult(Result result)方法
+   在WorkerRunnable执行完后调用， 
+   调用Handler发送结构
+   ->Message message = getHandler().obtainMessage(MESSAGE_POST_RESULT, new AsyncTaskResult<Result>(this, result));
+     message.sendToTarget();   
+ 
+3. public final AsyncTask<Params, Progress, Result> execute(Params... params) 
+   ->return executeOnExecutor(sDefaultExecutor, params);  sDefaultExecutor==SERIAL_EXECUTOR,
+
+4. public final AsyncTask<Params, Progress, Result> executeOnExecutor(Executor exec, Params... params) 
+   ->如果AsyncTask的状态mStatus不为Status.PENDING， 设置mStatus = Status.RUNNING;
+   ->onPreExecute(); 在执行前做一些工作
+   ->mWorker.mParams = params;
+   ->exec.execute(mFuture); 线程池执行mFuture FutureTask; exec 为sDefaultExecutor, 为串行执行线程池.
+  
+5. SerialExecutor类， 是Executor的子类
+   final ArrayDeque<Runnable> mTasks = new ArrayDeque<Runnable>();
+   Runnable mActive; 
+   public synchronized void execute(final Runnable r) 
+   ->mTasks.offer(new Runnable());
+     mTasks添加Runnable对象，Runnable.run()方法回调r.run()方法。执行完r.run();调用scheduleNext(); 
+   ->将r封装到Runnable中之后，执行scheduleNext(); 不断从mTasks中取出Runable对象交给THREAD_POOL_EXECUTOR执行，
+     Runable对象执行完继续执行scheduleNext()， 从而不断从mTask中活对象执行。
+	 
+	 
+	 
+    AsyncTask 的框架， 调用AsyncTask.execute()方法， 将Params赋给mWorker.mParams， 通过sDefaultExecutor.execute()执行mFuture;
+	mFuture是FutureTask类变量。 sDefaultExecutor.execute()的作用是将mFuture封装到Runnable中， 将封装的Runnable对象添加到队列mWorks中，
+	，同时不断从mWorks中取出Runnable对象执行mFuture的run()方法。
+	mWorkRunnble()执行，会调用doInBackground()方法， doInBackground()执行完后会执行postResult(result);回调执行结果.
+   
+   
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+   
+   
+    
+   
+   
