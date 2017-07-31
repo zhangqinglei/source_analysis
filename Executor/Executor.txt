@@ -1,0 +1,1 @@
+1. Executor只是一个接口， 接口只提供void execute(Runnable command);方法

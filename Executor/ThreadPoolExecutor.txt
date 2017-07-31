@@ -1,0 +1,109 @@
+1. ThreadPoolExecutor
+   ctl AtomicInteger类型变量
+   RUNNING:  接受新任务，处理任务队列中的任务
+   SHUTDOWN: 不接受新任务，处理任务队列中的任务
+   STOP:    不接受新任务，不处理任务队列中的任务
+   TIDYING:  所有任务完成，线程数为0，然后执行terminated()
+   TERMINATED: terminated() 已经完成
+   具体值：
+   RUNNING:-536870912
+   SHUTDOWN:0
+   STOP:536870912
+   TIDYING:1073741824
+   TERMINATED:1610612736
+   获取runState值，线程池的运行状态
+   private static int runStateOf(int c)     { return c & ~CAPACITY; }
+   获取workerCount值，有效线程的数量
+   private static int workerCountOf(int c)  { return c & CAPACITY; }
+   将运行状态和线程池数组合成新的ctl值。
+   private static int ctlOf(int rs, int wc) { return rs | wc; }
+   是否运行中
+   private static boolean isRunning(int c) {
+       return c < SHUTDOWN;
+   }
+   
+   private final HashSet<Worker> workers = new HashSet<>();
+   
+   
+
+
+  
+2. public void execute(Runnable command)
+   ->如果线程的数量小于corePoolSize
+     addWorker(command, true)
+	 
+	 
+3. private boolean addWorker(Runnable firstTask, boolean core)
+   ->获取线程状态int rs = runStateOf(c);
+   ->线程状态RUNNING < 0, 如果大于等于0,则线程处于非执行状态 即rs >= SHUTDOWN;
+   ->如果大于线程的容量则返回false
+   ->增加ctl的数量compareAndIncrementWorkerCount(c)
+   ->创建Work类w = new Worker(firstTask);
+   ->将Worker类的thread复制 final Thread t = w.thread;
+   ->将Work变量添加到works中， works是HashSet变量HashSet<Worker> workers.
+     如果works的size大于largestPoolSize， 修改largestPoolSize大小largestPoolSize = s;
+     设置修改状态。workerAdded = true;
+   ->如果添加成功workerAdded == true， 启动线程t.start(); workerStarted = true;
+   ThreadPoolExecutor.execute调用addWorker()方法将runnable封装到Worker类中， Worker类创建线程Thread,
+   由addWorker()方法调用执行t.start();。
+	
+	 
+   
+
+
+5. Worker类， 
+   Worker类继承Runnable接口和AbstractQueuedSynchronizer抽象类
+   final Thread thread;
+   Runnable firstTask;
+   构造函数
+   this.firstTask = firstTask;
+   this.thread = getThreadFactory().newThread(this);
+   thread由Thread线程工厂创造的Threadl类
+   public void run() 
+   ->runWorker(this);
+   
+   final void runWorker(Worker w)
+   ->如果task不为空或者getTask不为空，执行task.run();
+ 
+   private Runnable getTask()
+   ->从队列中取出Runnable workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) : workQueue.take();
+   
+   
+6. ThreadPoolExecutor.shutdown()
+   ->interruptIdleWorkers里的Thread, 调用interrupt， t.interrupt();
+   
+7. ThreadPoolExecutor.submit()
+   -> 创建FutureTask RunnableFuture<Void> ftask = newTaskFor(task, null);
+   -> 执行task execute(ftask);
+   
+8. RunnableFuture<T> newTaskFor(Runnable runnable, T value)
+   ->return new FutureTask<T>(runnable, value);   
+  
+9. Callable被封装到FutureTask, FutureTask是Runnable的子类。
+   线程池执行Runnable.run()回调Callable.call()方法.   
+   
+   
+   
+   ThreadPoolExecutor.execute调用addWorker()方法将runnable封装到Worker类中， Worker类创建线程Thread,
+   由addWorker()方法调用执行t.start();
+   Worker.Thread.run();直接使用task(Runable)或者getTask()获取Runnable。执行task.run()方法。
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   

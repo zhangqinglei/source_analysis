@@ -1,0 +1,104 @@
+1. Executor接口
+  (1). Executor只是一个接口， 接口只提供void execute(Runnable command);方法
+
+
+
+2. ExeceutorService接口
+   (1). ExeceutorService也是接口， 继承Executor接口
+   (2). ExeceutorService接口方法
+        void shutdown();
+        List<Runnable> shutdownNow();
+        boolean isShutdown();
+        boolean isTerminated();
+        <T> Future<T> submit(Callable<T> task);
+        <T> Future<T> submit(Runnable task, T result);
+        Future<?> submit(Runnable task);
+        <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException;
+        <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException;
+        <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException;
+        <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException;
+   
+   
+3. Executor类
+  (1).  Executor是一个线程池工厂类， 提供封装线程池的方法
+        ->public static ExecutorService newCachedThreadPool()
+	      return new ThreadPoolExecutor(0, Integer.MAX_VALUE,60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
+	      创建大小不受限制的线程池
+	
+	    ->public static ExecutorService newFixedThreadPool(int nThreads)
+          return new ThreadPoolExecutor(nThreads, nThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());	
+	      创建线程数量大小固定的线程池
+	  
+	    ->public static ExecutorService newSingleThreadExecutor()
+	      return new FinalizableDelegatedExecutorService(new ThreadPoolExecutor(1, 1,0L, TimeUnit.MILLISECONDS,new LinkedBlockingQueue<Runnable>()));
+	      返回大小为1的线程池
+	  
+	    ->public static ScheduledExecutorService newScheduledThreadPool(int corePoolSize)
+          return new ScheduledThreadPoolExecutor(corePoolSize);
+          返回ScheduledThreadPoolExecutor， 	  
+ 
+
+4. ScheduledThreadPoolExecutor类
+   ThreadPoolExecutor(int corePoolSize,
+                              int maximumPoolSize,
+                              long keepAliveTime,
+                              TimeUnit unit,
+                              BlockingQueue<Runnable> workQueue)
+   (1). ScheduledThreadPoolExecutor继承ThreadPoolExecutor类 和ScheduledExecutorService接口
+   (2). ->如果workQueue是LinkedBlockingQueue则 当  corePoolSize < 当前线程数量 < maximumPoolSize 把多余的线程放到
+          workQueue等待执行
+          当前线程数量 >　maximumPoolSize, 把多余的线程放到workQueue等待执行
+   (3). ->如果workQueue是SynchronousQueue则, 当  corePoolSize < 当前线程数量 < maximumPoolSize, 多余的线程直接执行，如果超时则清除。
+        ->当前线程数量 >　maximumPoolSize,  多余的任务拒绝。  
+   
+5. ThreadPoolExecutor类  
+   (1). ThreadPoolExecutor类继承抽象类AbstractExecutorService， 
+        抽象类AbstractExecutorService继承ExecutorService.
+   (2). 如果队列是
+		
+6. ScheduledExecutorService接口
+   接口方法
+   public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit);   
+   public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit);
+   public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit);
+   public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit);
+		
+   
+7. ThreadFactory接口
+   ThreadFactory接口方法
+   Thread newThread(Runnable r);   
+   
+   
+8. Future<V> 类
+    Future.get()方法具有阻塞性
+    	
+9. CompletionService接口
+   Future<V> submit(Callable<V> task);
+   Future<V> submit(Runnable task, V result);
+   Future<V> take() throws InterruptedException;
+   Future<V> poll();
+   Future<V> poll(long timeout, TimeUnit unit) throws InterruptedException;
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   		
