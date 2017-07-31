@@ -1,0 +1,97 @@
+
+1. Class.forName()
+   ->Dalvik_java_lang_Class_classForName()
+   ->dvmFindClassByName()
+     如果已经初始化调用dvmFindClass() clazz = dvmFindClass(descriptor, loader);
+	 否则调用dvmFindClassNoInit()
+   
+2. dvmFindClass() 
+   ->dvmFindClassNoInit clazz = dvmFindClassNoInit(descriptor, loader);
+   
+
+   
+3. ClassObject* dvmFindClassNoInit(const char* descriptor,Object* loader)
+   ->如果loader不为空 findClassFromLoaderNoInit
+   ->否则调用dvmFindSystemClassNoInit(); //return dvmFindSystemClassNoInit(descriptor)
+   
+   
+4. ClassObject* findClassFromLoaderNoInit(const char* descriptor, Object* loader)
+   -> dvmLookupClass ClassObject* clazz = dvmLookupClass(descriptor, loader, false);
+   ->如果clazz不为空返回return clazz;
+   ->否则找到class.loadedClasses方法
+     const Method* loadClass =
+            loader->clazz->vtable[gDvm.voffJavaLangClassLoader_loadClass];
+        JValue result;
+        dvmCallMethod(self, loadClass, loader, &result, nameObj);
+   ->将返回的class返回clazz = (ClassObject*) result.l;
+     
+   
+4. ClassObject* dvmLookupClass(const char* descriptor, Object* loader, bool unprepOkay)
+   ->获取hash值得hash = dvmComputeUtf8Hash(descriptor);
+   ->查找ClassObject对象返回
+     found = dvmHashTableLookup(gDvm.loadedClasses, hash, &crit,hashcmpClassByCrit, false);
+	 return (ClassObject*) found;
+   
+
+6. ClassObject* findClassNoInit(const char* descriptor, Object* loader, DvmDex* pDvmDex)
+   ->如果pDvmDex为空pDvmDex = searchBootPathForClass(descriptor, &pClassDef);
+   ->否则pClassDef = dexFindClass(pDvmDex->pDexFile, descriptor);
+   ->从pDvmDex加载相应的ClassObjectv clazz = loadClassFromDex(pDvmDex, pClassDef, loader);
+   
+7. DexClassDef* dexFindClass(const DexFile* pDexFile, const char* descriptor)   
+   ->DexClassLookup* pLookup = pDexFile->pClassLookup;
+   ->hash = classDescriptorHash(descriptor);
+   ->遍历pLookUp->table， 查找class的定义
+
+8. ClassObject* loadClassFromDex(DvmDex* pDvmDex, const DexClassDef* pClassDef, Object* classLoader)  
+   ClassObject* result;
+   DexClassDataHeader header;
+   const u1* pEncodedData;
+   const DexFile* pDexFile; 
+   ->pDexFile = pDvmDex->pDexFile;
+   ->pEncodedData = dexGetClassData(pDexFile, pClassDef);
+   ->dexReadClassDataHeader(&pEncodedData, &header);
+   ->result = loadClassFromDex0(pDvmDex, pClassDef, &header, pEncodedData, classLoader);
+   
+9. const u1* dexGetClassData(const DexFile* pDexFile, const DexClassDef* pClassDef)   
+   ->return (const u1*) (pDexFile->baseAddr + pClassDef->classDataOff);
+
+10. dexReadClassDataHeader(const u1** pData, DexClassDataHeader *pHeader)  
+    ->pHeader->staticFieldsSize = readUnsignedLeb128(pData);
+      pHeader->instanceFieldsSize = readUnsignedLeb128(pData);
+      pHeader->directMethodsSize = readUnsignedLeb128(pData);
+      pHeader->virtualMethodsSize = readUnsignedLeb128(pData);  
+	  
+11. loadClassFromDex0(DvmDex* pDvmDex,const DexClassDef* pClassDef, const DexClassDataHeader* pHeader,
+    const u1* pEncodedData, Object* classLoader)
+    ClassObject* newClass = NULL;
+    const DexFile* pDexFile;
+    const char* descriptor;
+    pDexFile = pDvmDex->pDexFile;
+    ->descriptor = dexGetClassDescriptor(pDexFile, pClassDef);
+    ->获取类的大小size_t size = classObjectSize(pHeader->staticFieldsSize);
+	->给类分配空间newClass = (ClassObject*) dvmMalloc(size, ALLOC_NON_MOVING);	
+	->获取接口 const DexTypeList* pInterfacesList;
+      pInterfacesList = dexGetInterfacesList(pDexFile, pClassDef);
+	  newClass->interfaceCount = pInterfacesList->size;
+      newClass->interfaces = (ClassObject**) dvmLinearAlloc(classLoader, newClass->interfaceCount * sizeof(ClassObject*));
+      for (i = 0; i < newClass->interfaceCount; i++) {
+            const DexTypeItem* pType = dexGetTypeItem(pInterfacesList, i);
+            newClass->interfaces[i] = (ClassObject*)(u4) pType->typeIdx;
+      }
+   ->设置值File
+   ->设置Method等
+
+
+
+
+
+
+
+
+
+
+
+
+
+
