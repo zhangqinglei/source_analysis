@@ -1,0 +1,150 @@
+1. OkHttpClient类
+   ->
+
+
+2. OkHttpClient.Builder类
+   -> dispatcher = new Dispatcher(); //DefaultSocketFactory
+      protocols = DEFAULT_PROTOCOLS; //HTTP1.1 
+      connectionSpecs = DEFAULT_CONNECTION_SPECS;
+      proxySelector = ProxySelector.getDefault(); //class java.net.ProxySelectorImpl
+      cookieJar = CookieJar.NO_COOKIES;
+      socketFactory = SocketFactory.getDefault();
+      hostnameVerifier = OkHostnameVerifier.INSTANCE;
+      certificatePinner = CertificatePinner.DEFAULT;
+      proxyAuthenticator = Authenticator.NONE;
+      authenticator = Authenticator.NONE;
+      connectionPool = new ConnectionPool();
+      dns = Dns.SYSTEM;
+      followSslRedirects = true;
+      followRedirects = true;
+      retryOnConnectionFailure = true;
+      connectTimeout = 10_000;
+      readTimeout = 10_000;
+      writeTimeout = 10_000;
+	  
+	  
+3.  OkHttpClient.Builder.build()方法
+    ->return new OkHttpClient(this);
+	  将Build类里的变量复制到OkHttpClient中
+	  
+	  
+4. Request类
+   private final HttpUrl url;
+   private final String method;
+   private final Headers headers;
+   private final RequestBody body;
+   private final Object tag;
+	
+
+5. Request.Builder类
+   private HttpUrl url;
+   private String method;
+   private Headers.Builder headers;
+   private RequestBody body;
+   private Object tag;
+   构造函数初始化
+   ->this.method = "GET";
+     this.headers = new Headers.Builder();
+6. Request.Builder.build()方法 
+   ->将Request.Builder里的变量复制到Request类中
+   
+7. OkHttpClient.newCall()
+   ->创建RealCall类。
+     return new RealCall(this, request);
+   
+8. RealCall类  
+   private boolean executed;
+   volatile boolean canceled;
+   Request originalRequest;
+   HttpEngine engine;   
+   构造函数
+   ->this.client = client;
+     this.originalRequest = originalRequest;
+   
+9. RealCall.enqueue(Callback responseCallback)  
+   ->client.dispatcher().enqueue(new AsyncCall(responseCallback, forWebSocket));
+
+10. Dispatcher类
+	private int maxRequests = 64;
+	private int maxRequestsPerHost = 5;
+	private ExecutorService executorService;
+	private final Deque<AsyncCall> readyAsyncCalls = new ArrayDeque<>();
+	private final Deque<AsyncCall> runningAsyncCalls = new ArrayDeque<>();
+	private final Deque<RealCall> runningSyncCalls = new ArrayDeque<>();
+   
+   
+10. Dispatcher.enqueue(AsyncCall call)
+    ->将call添加到runningAsyncCalls中runningAsyncCalls.add(call);
+	->线程池调用Call executorService().execute(call);
+	
+
+11. AsyncCall类 继承NamedRunnable
+	private final Callback responseCallback;
+    private final boolean forWebSocket;
+    NamedRunnable.name = "OKHttp " + url;	
+	->NamedRunnable.run() 调用AsyncCall.execute()
+	->获取响应结果Response response = getResponseWithInterceptorChain(forWebSocket);
+	->Callback响应responseCallback.onResponse(RealCall.this, response);
+	  
+	
+	
+12. AsyncCall.getResponseWithInterceptorChain(boolean forWebSocket)
+    ->依次添加retryAndFollowUpInterceptor， BridgeInterceptor， CacheInterceptor,ConnectInterceptor 和CallServerInterceptor
+	->RealInterceptorChain chain = new RealInterceptorChain（）；
+	->chain.proceed(this.originalRequest);
+	
+
+13. RealInterceptorChain.proceed(Request request) 
+    ->递归遍历Intercepter，获取Response.	
+	
+    
+	
+	
+
+13. OKHttp 整体架构
+    (1)创建OKHttpClient, 初始化dispatcher，协议， socketFactory等
+	(2)创建Request, 初始化url,method,headers,body等
+	(3)创建 Call 实际返回RealCall();RealCall封住HttpClient和Request
+    (4)RealCall.enqueue()进入实际请求和响应
+    (5)将Callback封装到AsyncCall中，RealCall.enqueue()调用
+	   OKHttpClient.dispatcher.enqueue(new AsyncCall(responseCallback, forWebSocket))处理AsyncCall对象
+	   如果runningAsyncCalls小于最大请求数量将AsyncCall对象塞进线程池
+	(6)AsyncCall线程调用到execute()函数
+	(7)execute 调用getResponseWithInterceptorChain(forWebSocket);处理请求，返回响应Response
+	(8)responseCallback响应回调结果
+
+	   
+	RetryAndFollowUpInterceptor
+    ->在网络请求失败后进行重试
+	  当服务器返回当前请求需要进行重定向时直接发起新的请求，并在条件允许情况下复用当前连接
+   
+    BridgeInterceptor
+	->设置内容长度，内容编码
+	  设置gzip压缩，并在接收到内容后进行解压。省去了应用层处理数据解压的麻烦
+	  添加cookie
+      设置其他报头，如User-Agent,Host,Keep-alive等。其中Keep-Alive是实现多路复用的必要步骤
+	
+	CacheInterceptor的职责很明确，就是负责Cache的管理
+	->当网络请求有符合要求的Cache时直接返回Cache
+      当服务器返回内容有改变时更新当前cache
+      如果当前cache失效，删除
+   
+    ConnectInterceptor的intercep
+	->即为当前请求找到合适的连接，可能复用已有连接也可能是重新创建的连接，返回的连接由连接池负责决定
+    
+	CallServerInterceptor负责向服务器发起真正的访问请求，并在接收到服务器返回后读取响应返回
+	
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+	 
+	 
+	  
+   

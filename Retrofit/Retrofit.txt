@@ -1,0 +1,85 @@
+1. retrofit采用代理+注解方案
+2. Retrofit.Builder() 
+   (1) 创建平台Platform PLATFORM = findPlatform() 创建平台Android Android类继承Platform类
+   (2) List<Converter.Factory> converterFactories = new ArrayList<>(); 
+       converterFactories添加BuiltInConverters； 
+	   converterFactories.add(new BuiltInConverters());
+3. baseUrl（）将url封装成HttpUrl, 保存到Build baseUrl变量中    
+
+4. Builder.build()
+   ->callFactory 是OkHttpClient变量 callFactory = new OkHttpClient();
+   ->callbackExecutor是Executor变量 callbackExecutor = new MainThreadExecutor();在Android平台中创建.
+   ->创建ExecutorCallAdapterFactory， 将callbackExecutor保存到ExecutorCallAdapterFactory中。
+   ->adapterFactories添加ExecutorCallAdapterFactory。
+   返回Retrofit
+
+5. Retrofit.create()返回接口的代理，重写接口.
+	
+   
+
+
+6. 由代理获取Call<ResponseBody>;
+   ->invoke()->loadServiceMethod(method);获取ServiceMethod. ServiceMethod serviceMethod = loadServiceMethod(method);
+   ->首先在serviceMethodCache中查找是否保存ServiceMethod结果。
+     如果没有创建result = new ServiceMethod.Builder(this, method).build();
+	 并保存到serviceMethodCache中。serviceMethodCache.put(method, result);
+   ->OkHttpCall okHttpCall = new OkHttpCall<>(serviceMethod, args);
+   ->serviceMethod.callAdapter.adapter(okHttpCall);
+   ->adapter() -> return new ExecutorCallbackCall<>(callbackExecutor, call); 将HttpCall变量保存到ExecutorCallbackCall中。
+	 
+	 
+	 
+
+7. 创建ServiceMethod.Builder()
+   ->Builder(Retrofit retrofit, Method method)
+     获取method annotation, 参数类型， 和参数注解
+	 
+	 public Builder(Retrofit retrofit, Method method) {
+      this.retrofit = retrofit;
+      this.method = method;
+      this.methodAnnotations = method.getAnnotations();
+      this.parameterTypes = method.getGenericParameterTypes();
+      this.parameterAnnotationsArray = method.getParameterAnnotations();
+    }
+  
+8.  ServiceMethod.Builder.build()
+    ->获取callAdpter callAdapter = createCallAdapter(); CallAdapter<?> callAdapter;转到9
+	->获取返回类型
+	->解析metho的注解获取方法(GET,POST,DELETE等);parseMethodAnnotation(annotation);
+	->parseHttpMethodAndPath()获取方法类型的参数头部等。保存到httpMethod，
+	->创建ServiceMethod并返回.
+	
+	
+	
+9. createCallAdapter()
+   ->获取method的发挥类型
+   ->获取method的注解
+   ->调用retrofit.callAdapter()->nextCallAdapter()
+   ->从adapterFactories中找到ExecutorCallAdapterFactory变量调用get()方法。
+     CallAdapter<?> adapter = adapterFactories.get(i).get(returnType, annotations, this);
+   ->get()方法常见CallAdapter();
+   
+   
+   
+   
+   
+10. HttpCall.enqueue()
+    ->创建okhttp3.Call rawCall call = rawCall = createRawCall();
+    ->	createRawCall() okhttp3.Call call = serviceMethod.callFactory.newCall(request);
+	callFactory是HttpClient.
+	-> rawCall.enqueue(); 进入OKHttp调用。
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   

@@ -1,0 +1,31 @@
+
+1. RecycleBin类
+   private RecyclerListener mRecyclerListener;
+   private int mFirstActivePosition;
+   private View[] mActiveViews = new View[0];
+   private ArrayList<View>[] mScrapViews;
+   private int mViewTypeCount;
+   private ArrayList<View> mCurrentScrap;
+   private ArrayList<View> mSkippedScrap;
+   private SparseArray<View> mTransientStateViews;
+   private LongSparseArray<View> mTransientStateViewsById;
+   
+   
+2. AbsListView.onLayout()
+   ->ListView.layoutChildren();
+
+3. ListView.layoutChildren()
+   ->AbsListView.fillActiveViews recycleBin.fillActiveViews(childCount, firstPosition);  
+   ->AbsListView.fillFromTop()从上到下填充ListView.mChidView
+   ->AbsListView.fillDown() while调用makeAndAddView()将ListView填满。
+   ->AbsListView.makeAndAddView() 从Adapter中获取View   
+   
+4. 第二次onLayout()
+   ->将detachAllViewsFromParent将子View全删除
+   ->AbsListView.fillFromTop()从上到下填充ListView.mChidView
+   ->AbsListView.fillDown() while调用makeAndAddView()将ListView填满。
+   ->AbsListView.makeAndAddView() 从删除的View的获取。
+
+5. 滑动加载View
+   会计算View 位置，将子View添加到scrapView中。
+      

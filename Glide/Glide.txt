@@ -1,0 +1,284 @@
+1. Glide类
+   private static final String TAG = "Glide";
+    private static volatile Glide glide;
+    private final GenericLoaderFactory loaderFactory;
+    private final Engine engine;
+    private final BitmapPool bitmapPool;
+    private final MemoryCache memoryCache;
+    private final DecodeFormat decodeFormat;
+    private final ImageViewTargetFactory imageViewTargetFactory = new ImageViewTargetFactory();
+    private final TranscoderRegistry transcoderRegistry = new TranscoderRegistry();
+    private final DataLoadProviderRegistry dataLoadProviderRegistry;
+    private final CenterCrop bitmapCenterCrop;
+    private final GifBitmapWrapperTransformation drawableCenterCrop;
+    private final FitCenter bitmapFitCenter;
+    private final GifBitmapWrapperTransformation drawableFitCenter;
+    private final Handler mainHandler;
+    private final BitmapPreFiller bitmapPreFiller;
+	
+	构造函数
+	->
+	Glide(Engine engine, MemoryCache memoryCache, BitmapPool bitmapPool, Context context, DecodeFormat decodeFormat) {
+        this.engine = engine;
+        this.bitmapPool = bitmapPool;
+        this.memoryCache = memoryCache;
+        this.decodeFormat = decodeFormat;
+        this.loaderFactory = new GenericLoaderFactory(context);
+        this.mainHandler = new Handler(Looper.getMainLooper());
+        this.bitmapPreFiller = new BitmapPreFiller(memoryCache, bitmapPool, decodeFormat);
+        this.dataLoadProviderRegistry = new DataLoadProviderRegistry();
+        StreamBitmapDataLoadProvider streamBitmapLoadProvider = new StreamBitmapDataLoadProvider(bitmapPool, decodeFormat);
+        this.dataLoadProviderRegistry.register(InputStream.class, Bitmap.class, streamBitmapLoadProvider);
+        FileDescriptorBitmapDataLoadProvider fileDescriptorLoadProvider = new FileDescriptorBitmapDataLoadProvider(bitmapPool, decodeFormat);
+        this.dataLoadProviderRegistry.register(ParcelFileDescriptor.class, Bitmap.class, fileDescriptorLoadProvider);
+        ImageVideoDataLoadProvider imageVideoDataLoadProvider = new ImageVideoDataLoadProvider(streamBitmapLoadProvider, fileDescriptorLoadProvider);
+        this.dataLoadProviderRegistry.register(ImageVideoWrapper.class, Bitmap.class, imageVideoDataLoadProvider);
+        GifDrawableLoadProvider gifDrawableLoadProvider = new GifDrawableLoadProvider(context, bitmapPool);
+        this.dataLoadProviderRegistry.register(InputStream.class, GifDrawable.class, gifDrawableLoadProvider);
+        this.dataLoadProviderRegistry.register(ImageVideoWrapper.class, GifBitmapWrapper.class, new ImageVideoGifDrawableLoadProvider(imageVideoDataLoadProvider, gifDrawableLoadProvider, bitmapPool));
+        this.dataLoadProviderRegistry.register(InputStream.class, File.class, new StreamFileDataLoadProvider());
+        this.register(File.class, ParcelFileDescriptor.class, new Factory());
+        this.register(File.class, InputStream.class, new com.bumptech.glide.load.model.stream.StreamFileLoader.Factory());
+        this.register(Integer.TYPE, ParcelFileDescriptor.class, new com.bumptech.glide.load.model.file_descriptor.FileDescriptorResourceLoader.Factory());
+        this.register(Integer.TYPE, InputStream.class, new com.bumptech.glide.load.model.stream.StreamResourceLoader.Factory());
+        this.register(Integer.class, ParcelFileDescriptor.class, new com.bumptech.glide.load.model.file_descriptor.FileDescriptorResourceLoader.Factory());
+        this.register(Integer.class, InputStream.class, new com.bumptech.glide.load.model.stream.StreamResourceLoader.Factory());
+        this.register(String.class, ParcelFileDescriptor.class, new com.bumptech.glide.load.model.file_descriptor.FileDescriptorStringLoader.Factory());
+        this.register(String.class, InputStream.class, new com.bumptech.glide.load.model.stream.StreamStringLoader.Factory());
+        this.register(Uri.class, ParcelFileDescriptor.class, new com.bumptech.glide.load.model.file_descriptor.FileDescriptorUriLoader.Factory());
+        this.register(Uri.class, InputStream.class, new com.bumptech.glide.load.model.stream.StreamUriLoader.Factory());
+        this.register(URL.class, InputStream.class, new com.bumptech.glide.load.model.stream.StreamUrlLoader.Factory());
+        this.register(GlideUrl.class, InputStream.class, new com.bumptech.glide.load.model.stream.HttpUrlGlideUrlLoader.Factory());
+        this.register(byte[].class, InputStream.class, new com.bumptech.glide.load.model.stream.StreamByteArrayLoader.Factory());
+        this.transcoderRegistry.register(Bitmap.class, GlideBitmapDrawable.class, new GlideBitmapDrawableTranscoder(context.getResources(), bitmapPool));
+        this.transcoderRegistry.register(GifBitmapWrapper.class, GlideDrawable.class, new GifBitmapWrapperDrawableTranscoder(new GlideBitmapDrawableTranscoder(context.getResources(), bitmapPool)));
+        this.bitmapCenterCrop = new CenterCrop(bitmapPool);
+        this.drawableCenterCrop = new GifBitmapWrapperTransformation(bitmapPool, this.bitmapCenterCrop);
+        this.bitmapFitCenter = new FitCenter(bitmapPool);
+        this.drawableFitCenter = new GifBitmapWrapperTransformation(bitmapPool, this.bitmapFitCenter);
+    }
+	
+	register(Class<T> modelClass, Class<Y> resourceClass, ModelLoaderFactory<T, Y> factory) 
+	->
+	
+2. GlideBuilder类
+   private final Context context;
+    private Engine engine;                  //engine = new Engine(this.memoryCache, this.diskCacheFactory, this.diskCacheService, this.sourceService);
+    private BitmapPool bitmapPool;
+    private MemoryCache memoryCache;
+    private ExecutorService sourceService; //sourceService = new FifoPriorityThreadPoolExecutor(calculator); 先进先出线程池
+    private ExecutorService diskCacheService; //先进先出线程池
+    private DecodeFormat decodeFormat;
+    private Factory diskCacheFactory;      //this.diskCacheFactory = new InternalCacheDiskCacheFactory(this.context);
+	                                       //InternalCacheDiskCacheFactory继承DiskLruCacheFactory diskSize 为262144000
+	
+	
+3. Engine类
+   private final Map<Key, EngineJob> jobs;                                     //jobs = new HashMap();
+    private final EngineKeyFactory keyFactory;                                 //keyFactory = new EngineKeyFactory();
+    private final MemoryCache cache;                                           //
+    private final Engine.EngineJobFactory engineJobFactory;                    //engineJobFactory = new Engine.EngineJobFactory(diskCacheService, sourceService, this);
+    private final Map<Key, WeakReference<EngineResource<?>>> activeResources;  //activeResources = new HashMap();
+    private final ResourceRecycler resourceRecycler;                           //resourceRecycler = new ResourceRecycler();
+    private final Engine.LazyDiskCacheProvider diskCacheProvider;              //this.diskCacheProvider = new Engine.LazyDiskCacheProvider(diskCacheFactory);
+    private ReferenceQueue<EngineResource<?>> resourceReferenceQueue;	
+	
+	
+4. DataLoadProviderRegistry类
+   private static final MultiClassKey GET_KEY = new MultiClassKey();
+   private final Map<MultiClassKey, DataLoadProvider<?, ?>> providers = new HashMap();
+   register() 
+   ->this.providers.put(new MultiClassKey(dataClass, resourceClass), provider);
+   
+5. GenericLoaderFactory类
+   private final Map<Class, Map<Class, ModelLoaderFactory>> modelClassToResourceFactories = new HashMap();  //根据modelClass (String.class)为Key
+   保存Map<Class, ModelLoaderFactory>, 在Glide构造函数中调用register()方法注册Factory, 同事以resourceClass为Key保存ModelLoaderFactory.
+   例如StreamStringLoader.Factory()
+   
+   private final Map<Class, Map<Class, ModelLoader>> cachedModelLoaders = new HashMap(); 用于缓存ModelLoader StreamStringLoader等。
+   
+   ModelLoaderFactory<T, Y> register(Class<T> modelClass, Class<Y> resourceClass, ModelLoaderFactory<T, Y> factory) 
+   ->将factory保存到 modelClassToResourceFactories 中
+   
+   ModelLoaderFactory<T, Y> getFactory(Class<T> modelClass, Class<Y> resourceClass)
+   ->根据modelClass和resourceClass从modelClassToResourceFactories获取Factory
+     例如String.class, InputStream.class, 获取StreamStringLoader.Factory()
+   
+   
+6. DrawableTypeRequest类 继承DrawableRequestBuilder类
+   DrawableRequestBuilder继承GenericRequestBuilder
+   
+   private final ModelLoader<ModelType, InputStream> streamModelLoader;
+   private final ModelLoader<ModelType, ParcelFileDescriptor> fileDescriptorModelLoader;
+   private final OptionsApplier optionsApplier;   
+   
+7. EngineJobFactory Engine类内部的静态内部类
+   private final ExecutorService diskCacheService;
+   private final ExecutorService sourceService;
+   private final EngineJobListener listener; 
+   
+   EngineJob build(Key key, boolean isMemoryCacheable) 
+   ->return new EngineJob(key, this.diskCacheService, this.sourceService, isMemoryCacheable, this.listener);
+ 
+8. EngineJob类
+   private static final EngineJob.EngineResourceFactory DEFAULT_FACTORY = new EngineJob.EngineResourceFactory();
+   private static final Handler MAIN_THREAD_HANDLER = new Handler(Looper.getMainLooper(), new EngineJob.MainThreadCallback());
+   private static final int MSG_COMPLETE = 1;
+   private static final int MSG_EXCEPTION = 2;
+   private final List<ResourceCallback> cbs;
+   private final EngineJob.EngineResourceFactory engineResourceFactory;
+   private final EngineJobListener listener;
+   private final Key key;
+   private final ExecutorService diskCacheService; //缓存线程池
+   private final ExecutorService sourceService;    //下载线程池
+   private final boolean isCacheable;
+   private boolean isCancelled;
+   private Resource<?> resource;
+   private boolean hasResource;
+   private Exception exception;
+   private boolean hasException;
+   private Set<ResourceCallback> ignoredCallbacks;
+   private EngineRunnable engineRunnable;
+   private EngineResource<?> engineResource;
+   private volatile Future<?> future;
+
+9. DecodeJob类
+   private static final String TAG = "DecodeJob";
+   private static final DecodeJob.FileOpener DEFAULT_FILE_OPENER = new DecodeJob.FileOpener();
+   private final EngineKey resultKey;
+   private final int width;
+   private final int height;
+   private final DataFetcher<A> fetcher;                 //com.bumptech.glide.load.model.ImageVideoModelLoader$ImageVideoFetcher
+   private final DataLoadProvider<A, T> loadProvider;
+   private final Transformation<T> transformation;
+   private final ResourceTranscoder<T, Z> transcoder;
+   private final DecodeJob.DiskCacheProvider diskCacheProvider;
+   private final DiskCacheStrategy diskCacheStrategy;
+   private final Priority priority;
+   private final DecodeJob.FileOpener fileOpener;
+   private volatile boolean isCancelled;
+   
+   public void start(EngineRunnable engineRunnable)
+   ->将engineRunnable提交到线程池执行
+     this.future = this.diskCacheService.submit(engineRunnable);
+  
+10. EngineRunnable类
+    private final Priority priority;
+    private final EngineRunnable.EngineRunnableManager manager;
+    private final DecodeJob<?, ?, ?> decodeJob;
+    private EngineRunnable.Stage stage;
+    private volatile boolean isCancelled;  
+   
+   
+1. Glide.with(FragmentActivity activity)
+   ->获取RequestManagerRetriever retriever = RequestManagerRetriever.get();
+   ->由retriever获取RequestManager
+   
+2. RequestManager.load(url)
+   返回DrawableTypeRequest<String>对象
+   ->return (DrawableTypeRequest)this.fromString().load(string);
+   
+3. RequestManager.fromString()
+   DrawableTypeRequest<String> fromString()
+   ->loadGeneric()
+   -> 创建new DrawableTypeRequest(modelClass, streamModelLoader, fileDescriptorModelLoader, this.context, this.glide, this.requestTracker, this.lifecycle, this.optionsApplier)
+   ->返回DrawableTypeRequest
+   
+   
+4. DrawableTypeRequest<T> RequestManager.loadGeneric(Class<T> modelClass) 
+   ->buildStreamModelLoader() 
+   ->get(context).getLoaderFactory().buildModelLoader(modelClass, resourceClass)
+   ->GenericLoaderFactory.buildModelLoader() 
+     获取StreamStringLoader$Factory
+   ->StreamStringLoader$Factory.build()创建StreamStringLoader。	 
+   
+ 
+ 
+ 5. DrawableTypeRequest.asBitmap()
+    ->创建并返回BitmapTypeRequest 
+	  BitmapTypeRequest 继承BitmapRequestBuilder， BitmapRequestBuilder继承GenericRequestBuilder类
+	  
+ 6.BitmapTypeRequest.into(View)
+   ->BitmapRequestBuilder.into(View view) 
+     调用Glide.buildImageViewTarget创建Target   
+   ->GenericRequestBuilder.into(Target target)
+     完成网络请求和回调显示图片
+   
+   
+7. GenericRequestBuilder.into（）
+   ->获取请求Request buildRequest(target);
+   ->将请求保存到View中
+   ->this.requestTracker.runRequest(request);执行请求
+
+8. RequestTracker.runRequest(Request request)
+   ->将request保存到Set<Request> requests中
+   ->request.begin()
+
+9. GenericRequest.begin()
+   -> GenericRequest.onSizeReady(int width, int height)
+   ->请求网络
+     this.loadStatus = this.engine.load(this.signature, width, height, 
+	 dataFetcher, this.loadProvider, 
+	 this.transformation, 
+	 transcoder, this.priority, 
+	 this.isMemoryCacheable, this.diskCacheStrategy, this);  
+	 
+10. Engine.load()
+    ->创建EngineJob,DecodeJob和EngineRunnable
+    ->EngineJob将EngineRunnable提交到线程池执行
+    ->	
+	
+11. EngineRunnable.run()
+    ->调用decode()
+    ->调用decodeFromSource()
+    ->this.decodeJob.decodeFromSource();
+	->获取Resource resource.
+	->
+    
+12. DecodeJob.decodeFromSource()
+    ->decodeSource();
+    ->Object data = this.fetcher.loadData(this.priority); //ImageVideoModelLoader$ImageVideoFetcher
+	->decodeFromSourceData(data)
+	->onLoadComplete(resource)
+	->EngineJob.onResourceReady(resource);
+	
+13. EngineJob.onResourceReady(resource)
+    ->通过Handler将resource发送到主线程 MAIN_THREAD_HANDLER.obtainMessage(1, this).sendToTarget();
+	->MainThreadCallback.handleMessage() MainThreadCallback继承Handler.Callback
+	->handleResultOnMainThread() 调用cb回调 cb.onResourceReady(this.engineResource); cb 是GenericRequest类
+	->
+    	
+    
+13. ImageVideoModelLoader$ImageVideoFetcher.loadData()
+    ->HttpUrlFetcher.loadData()
+    ->HttpUrlFetcher.loadDataWithRedirects()
+    ->HttpUrlFetcher创建HttpUrlConnection返回InputStream流。	
+	
+14. DecodeJob.decodeFromSourceData(data)
+    ->	
+   
+   
+7. Glide.buildImageViewTarget(ImageView imageView, Class<R> transcodedClass) 
+   ->imageViewTargetFactory.buildTarget(imageView, transcodedClass)
+   ->获取return new DrawableImageViewTarget(view);
+     DrawableImageViewTarget继承ImageViewTarget， ImageViewTarget继承Target.
+   
+   
+   
+   
+ 8. DrawableImageViewTarget类继承ImageViewTarget, ImageViewTarget继承ViewTarget
+ 
+ 9. ViewTarget.setRequest(Request request)
+    ->将Request保存到View中
+	
+10.    
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   

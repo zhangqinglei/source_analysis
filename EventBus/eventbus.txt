@@ -1,0 +1,97 @@
+1. EventBus类
+   Map<Class<?>, CopyOnWriteArrayList<Subscription>> subscriptionsByEventType， 根据onEvent 方法参数类型为Key.
+   Map<Object, List<Class<?>>> typesBySubscriber = new HashMap(); List<Class<?>>用来保存Object中onEvent方法的参数类型
+   例如onEventMainThread（A a）是Object中方法，A 是参数类型.
+   currentThreadEventQueue是ThreadLocal<List<Object>>变量
+   
+
+2. EventBus.getDefault()单例模式获取EventBus对象
+
+3. EventBus.register()
+   -> register(subscriber, this.defaultMethodName, false); defaultMethodName是"onEvent"
+   ->subscriberMethodFinder 是SubscriberMethodFinder变量
+   ->调用SubscriberMethodFinder.findSubscriberMethods()获取List<SubscriberMethod>变量，
+     List<SubscriberMethod>变量是本类下相同名称onEvent方法的集合。例如onEventMainThread(A a), onEventMainThread(B b).
+   ->遍历List<SubscriberMethod>变量, 调用subscribe()方法.this.subscribe(subscriber, subscriberMethod, sticky);
+   ->
+   
+4. EventBus.subscribe(subscriber, subscriberMethod, sticky)
+   ->根据subscriberMethod.eventType 从subscriptionsByEventType获取CopyOnWriteArrayList<Subscription>队列。
+   ->创建Subscription变量， Subscription newSubscription = new Subscription(subscriber, subscriberMethod);
+   ->如果CopyOnWriteArrayList<Subscription>队列为空创建新的CopyOnWriteArrayList<Subscription>变量subscriptions，添加到
+     subscriptionsByEventType中,subscriptions = new CopyOnWriteArrayList();
+     this.subscriptionsByEventType.put(eventType, subscriptions);
+   ->subscriptions将newSubscription添加.
+   ->以subscriber为key查询List<Class<?>>， 不存在的话创建List<Class<?>> 变量subscribedEvents1 = new ArrayList();保存到typesBySubscriber。
+   ->subscribedEvents1保存subscrier中onEvent方法分参数类型((List)subscribedEvents1).add(eventType);
+   
+	 
+   
+4. SubscriberMethodFinder类，
+   methodCache Map<String, List<SubscriberMethod>> 变量
+   key值类全名+eventMethodName.
+   （1）findSubscriberMethods(Class<?> subscriberClass, String eventMethodName)
+	    ->首先在methodCache中查找List<SubscriberMethod>变量如果不为空， 返回List<SubscriberMethod>变量
+		->若为空遍历subscriberClass方法 Method[] methods = var23.getDeclaredMethods();
+		->查找包含"onEvent"的方法(onEventMainThread, onEventBackgroundThread, onEventAsync),
+		  来确定ThreadMode（主线程，后台线程等类型）。
+		->获取onEvent方法的参数，创建methdoKey=方法名>参数类型名, 例如： "onEventMainThread>com.example.bean.CalendarBean"
+		->创建SubscriberMethod变量添加到List<SubscriberMethod>变量中.var22.add(new SubscriberMethod(method, threadMode, eventType));
+		->将List<SubscriberMethod>变量保存到methodCache中。返回List<SubscriberMethod>变量。
+		
+5. SubscriberMethod类
+   final Method method; （需要回调的方法onEvent）
+   final ThreadMode threadMode;（需要回调的线程类型主线程，后台线程等）
+   final Class<?> eventType;(onEvent方法参数类型)
+   String methodString;
+   
+6. EventBus.post(Object event)
+   ->currentThreadEventQueue中获取List eventQueue.
+   ->将event保存到   eventQueue中.
+   ->如果eventQueue不为空，从eventQueue中取出事件，调用postSingleEvent发出
+     this.postSingleEvent(eventQueue.remove(0), isMainThread);
+
+7. EventBus.postSingleEvent(Object event, boolean isMainThread)
+   ->获取event的class Class eventClass = event.getClass();
+   ->获取eventTypes， eventTypes是eventClass极其继承的类.
+   ->遍历eventTypes Class clazz = (Class)eventTypes.get(h);
+   ->根据clazz获取subscriptions, subscriptions = (CopyOnWriteArrayList)this.subscriptionsByEventType.get(clazz);
+   ->遍历subscriptions, 获取subscription Subscription subscription = (Subscription)var11.next();
+   ->调用this.postToSubscription(subscription, event, isMainThread);
+   
+8. EventBus.postToSubscription(Subscription subscription, Object event, boolean isMainThread)
+   ->invokeSubscriber
+   ->subscription.subscriberMethod.method.invoke(subscription.subscriber, new Object[]{event});
+     通过反射调用回调onEvent方法.
+	 
+	 
+	 
+1. (1)EventBus注册是， 遍历Object中声明的onEvent方法，以类名+方法名（MainActivity+onEventMainThread）为key保存到methodCache中。
+      methodCache 是Map<String, List<SubscriberMethod>> 变量. SubscriberMethod中包含方法，参数类型和运行线程类型
+   (2)遍历这些  SubscriberMethod， 创建Subscription， 将Subscription 保存到subscriptions = new CopyOnWriteArrayList();中。
+      将subscriptions保存到subscriptionsByEventType。（根据参数类型保存Subscription队列），post方法调用时根据参数的类型找到
+	  subscriptions，遍历subscriptions中的Subscription获取SubscribeMethod回调注册的事件(onEventMainThread)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
+   
+   
+   

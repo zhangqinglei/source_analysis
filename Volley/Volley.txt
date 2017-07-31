@@ -1,0 +1,76 @@
+1 创建RequestQueue对象 Volley.newRequestQueue(Context context) 
+  -> newRequestQueue(context, null); //public static RequestQueue newRequestQueue(Context context, HttpStack stack)
+  
+  -> 创建缓存/data/user/0/com.example.lifeix.testapplication/cache/volley,
+	 创建HurlStack, 创建BasicNetWork, 
+	 创建RequestQueue将缓存和NetWork保存到RequestQueue中.
+	 
+  ->Queue.start();
+    创建CachDispatcher 和 NetworkDispatcher; 同时启动Dispatcher
+	Dispatcher是对Thread的继承和封装.
+	RequestQueue中mCacheQueue和mNetworkQueue都是PriorityBlockingQueue<Request>变量
+	DiskBaseCache继承Cache， mCache是DiskBaseCache变量.
+	mMaxCacheSizeInBytes是mCache的大小为5M
+	mDelivery是ResponseDelivery变量ExecutorDelivery.
+	mCacheQueue, mCache, mNetworkQueue, mDelivery都封装到CacheDispatcher中.
+	mCache, mNetworkQueue, mDelivery, mNetWork封装到NetworkDispatcher中.
+	
+	
+	
+2  NetworkDispatcher运行，从请求队列 mQueue中取出Request，
+   ->mNetwork(BasicNetWork)对request进行处理.
+   ->如果有缓存直接返回，networkResponse.notModified（httpcode==304）
+   ->没有缓存则解析返回结果
+     Response<?> response = request.parseNetworkResponse(networkResponse);
+   ->是否需要缓存 是？缓存
+   ->响应回调, 回调Request会把mResponseDelivered设置为true, markDelivered(); 转移到4
+     mDelivery.postResponse
+   
+3. BasicNetWor.performRequest(Request<?> request);
+   ->获取url和请求Header
+   ->创建HttpURLConnection
+     设置链接超时时间，读取超时时间，是否缓存等.
+	 将Header信息设置到connection中，connection.addRequestProperty(headerName, map.get(headerName));
+	 设置请求方法 GET,Post,Delete等,connection.setRequestMethod("POST");
+	 返回响应HttpResponse
+	 
+4. ExecutorDelivery回调postResponse
+   ExecutorDelivery创建时会创建Executor变量mResponsePoster。
+   mResponsePoster.execute(new ResponseDeliveryRunnable(request, response, runnable));
+   mResponsePoster添加回调线程ResponseDeliveryRunnable
+
+5. ResponseDeliveryRunnable->run()
+   ->调用Request回调函数mRequest.deliverResponse(mResponse.result);
+   ->Response.Listner.onSuccess();
+   
+   
+二、创建请求，添加到请求队列中。
+
+1. RequestQueue.add()
+   ->Request 将RequestQueue保存到自身, request.setRequestQueue(this);
+   ->将request保存到mCurrentRequests中，   mCurrentRequests是Set<Request>变量。
+   ->request.addMarker("add-to-queue");
+   ->如果 Request不需要缓存，直接添加到mNetworkQueue中。
+   ->如果需要缓存request获取cacheKey(url), cacheKey是rqeust的url
+     在mWaitingRequests中查找是否有缓存的请求队列。mWaitingRequests是Map<String, Queue<Request>>变量。
+	 如果请求队列为空，则创建请求队列stagedRequests = new LinkedList<Request>();
+	 如果没有请求队列则向mWaitingRequests添加null队列。（第一次请求不需要将队列缓存到mWaitingRequests中）
+	 请求响应结束之后会移除
+	 
+	 
+2.  如果请求设置缓存的话，将请求保存到缓存队列中。CacheDispatcher会查询缓存queue mCacheQueue;
+    CacheDispatcher,run()
+	->如果缓存没有命中或者过期(Expeired)则将请求添加到mNetworkQueue中，由NetworkDispatcher处理。
+	  Cache.Entry entry = mCache.get(request.getCacheKey());获取命中的缓存.
+	
+   
+   
+
+
+	 
+	 
+	
+   
+ 
+   
+	
