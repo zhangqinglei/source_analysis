@@ -1,0 +1,25 @@
+
+
+1. ActivityManagerService. ComponentName startServiceLocked(IApplicationThread caller,  
+            Intent service, String resolvedType,  
+            int callingPid, int callingUid)
+   ->函数首先通过retrieveServiceLocked来解析service这个Intent，就是解析前面我们在AndroidManifest.xml定义的Service标签的intent-filter相关内容
+     ，然后将解析结果放在res.record中，然后继续调用bringUpServiceLocked进一步处理。
+   ->如果进程存在则sendServiceArgsLocked(r, execInFg, false);
+   ->否则创建进程app=mAm.startProcessLocked(procName, r.appInfo, true, intentFlags, "service", r.name, false, isolated, false)   
+  
+
+2. ActivityManagerService.realStartServiceLocked()
+   ->app.thread.scheduleCreateService(r, r.serviceInfo);  
+   ->ApplicationThread.scheduleCreateService();
+   ->Handler调用handleCreateService((CreateServiceData)msg.obj);  
+   -> java.lang.ClassLoader cl = packageInfo.getClassLoader();  
+      service = (Service) cl.loadClass(data.info.name).newInstance();   
+	  ContextImpl context = new ContextImpl();  
+      context.init(packageInfo, null, this);  
+      Application app = packageInfo.makeApplication(false, mInstrumentation);  
+      context.setOuterContext(service);  
+      service.attach(context, this, data.info.name, data.token, app,  
+                ActivityManagerNative.getDefault());  
+      service.onCreate();  
+      mServices.put(data.token, service);

@@ -1,0 +1,129 @@
+
+ContextImpl类
+LoadedApk mPackageInfo;
+
+
+
+IntentFilter counterActionFilter = new IntentFilter(CounterService.BROADCAST_COUNTER_ACTION);    
+registerReceiver(counterActionReceiver, counterActionFilter);
+
+
+registerReceiver()方法会根据Activity和BroadReceive为Key保存 LoadedApk.ReceiverDispatcher。
+private final ArrayMap<Context, ArrayMap<BroadcastReceiver, ReceiverDispatcher>> mReceivers
+
+IntentFilter类
+ private int mPriority;
+    private int mOrder;
+    private final ArrayList<String> mActions;
+    private ArrayList<String> mCategories = null;
+    private ArrayList<String> mDataSchemes = null;
+    private ArrayList<PatternMatcher> mDataSchemeSpecificParts = null;
+    private ArrayList<AuthorityEntry> mDataAuthorities = null;
+    private ArrayList<PatternMatcher> mDataPaths = null;
+    private ArrayList<String> mDataTypes = null;
+    private boolean mHasPartialTypes = false;
+
+
+1. public Intent registerReceiver(BroadcastReceiver receiver, IntentFilter filter) 
+   ->ContextWrapper.registerReceiver();
+   ->mBase.registerReceiver(receiver, filter)
+   
+2. ContextImpl.registerReceiver()
+   ->registerReceiver(receiver, filter, null, null);
+   ->registerReceiverInternal(receiver, getUserId(), filter, broadcastPermission, scheduler, getOuterContext());   
+   
+3. ContextImpl.registerReceiverInternal(BroadcastReceiver receiver, int userId,
+            IntentFilter filter, String broadcastPermission,
+            Handler scheduler, Context context)
+   ->scheduler = mMainThread.getHandler();
+   如果mPackageInfo不为空， mPackageInfo是一个LoadedApk实例
+   ->IIntentReceiver rd = mPackageInfo.getReceiverDispatcher(receiver, context, scheduler, mMainThread.getInstrumentation(), true);   
+   否则
+   ->IIntentReceiver rd = new LoadedApk.ReceiverDispatcher(receiver, context, scheduler, null, true).getIIntentReceiver();
+   
+   
+4. LoadedApk.getReceiverDispatcher(BroadcastReceiver r,
+            Context context, Handler handler,
+            Instrumentation instrumentation, boolean registered)
+   private final ArrayMap<Context, ArrayMap<BroadcastReceiver, ReceiverDispatcher>> mReceivers
+   ->根据context查找ArrayMap<BroadcastReceiver, LoadedApk.ReceiverDispatcher> map
+   ->如果map不为空， 在map中查找LoadedApk.ReceiverDispatcher rd = map.get(r);
+   ->如果rd为空， 创建新的LoadedApk.ReceiverDispatcher变量保存到map中。
+   ->返回 IIntentReceiver
+
+5. ReceiverDispatcher类
+   构造函数
+   mIIntentReceiver = new InnerReceiver(this, !registered);
+   mReceiver = receiver;
+   mContext = context;
+   mActivityThread = activityThread;
+   mInstrumentation = instrumentation;
+   mRegistered = registered;
+
+6. ActivityManagerServie.Intent registerReceiver(IApplicationThread caller, IIntentReceiver receiver, IntentFilter filter, String permission)   
+   获取ReceiverList ReceiverList rl= (ReceiverList)mRegisteredReceivers.get(receiver.asBinder());
+   mRegisteredReceivers是HashMap<IBinder, ReceiverList> 变量， 
+   ReceiverList extends ArrayList<BroadcastFilter>
+   ->将rl添加到ProcessRecord.receives中 rl.app.receivers.add(rl);
+   ->mRegisteredReceivers.put(receiver.asBinder(), rl);将rl保存到mRegisteredReceivers中
+   ->创建BroadcastFilter 变量bf bf = new BroadcastFilter(filter, rl, callerPackage, permission, callingUid, userId);
+     将bf保存到ReceiverList中 rl.add(bf);
+   ->将bf保存到mReceiverResolver.addFilter(bf);中
+     IntentResolver<BroadcastFilter, BroadcastFilter> mReceiverResolver= new IntentResolver<BroadcastFilter, BroadcastFilter>()
+  
+  
+ 发送广播：
+   sendBroadcast()
+   
+1. ActivityManagerServie.broadcastIntent()
+   ->broadcastIntentLocked()
+   ->registeredReceivers = mReceiverResolver.queryIntent(intent, resolvedType, false);
+   ->创建BroadcastRecord r = new BroadcastRecord(intent, callerApp,  
+                callerPackage, callingPid, callingUid, requiredPermission,  
+                registeredReceivers, resultTo, resultCode, resultData, map,  
+                ordered, sticky, false);   
+   ->将r保存到mParallelBroadcasts.add(r)  中
+   ->   scheduleBroadcastsLocked();  
+ 
+2. ActivityManagerServie.scheduleBroadcastsLocked()
+   ->mHandler.sendEmptyMessage(BROADCAST_INTENT_MSG);  
+        mBroadcastsScheduled = true;  
+		
+3. ActivityManagerServie.processNextBroadcast()
+   ->deliverToRegisteredReceiverLocked(r, (BroadcastFilter)target, false); 
+   ->performReceiveLocked()
+4. ActivityManagerServie.static void performReceiveLocked(ProcessRecord app, IIntentReceiver receiver,  
+            Intent intent, int resultCode, String data, Bundle extras,  
+            boolean ordered, boolean sticky)
+   ->app.thread.scheduleRegisteredReceiver(receiver, intent, resultCode,  
+                    data, extras, ordered, sticky);  
+   
+
+5. ActivityThread.scheduleRegisteredReceiver()
+   ->receiver.performReceive(intent, resultCode, dataStr, extras, ordered, sticky); 
+   ->   
+6. ReceiverDispatcher.InnerReceiver.performReceive(Intent intent, int resultCode,  
+                    String data, Bundle extras, boolean ordered, boolean sticky)
+   ->LoadedApk.ReceiverDispatcher rd = mDispatcher.get(); 
+   ->rd.performReceive(intent, resultCode, data, extras, ordered, sticky);    
+7. 调用Handler.post()
+   ->receiver.onReceive(mContext, intent);  回掉onReceive   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+      
