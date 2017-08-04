@@ -1,0 +1,97 @@
+
+
+Handler构造函数
+   final Looper mLooper;
+   final MessageQueue mQueue;
+   final Callback mCallback;
+   final boolean mAsynchronous;
+   ->mLooper = Looper.myLooper();
+     mQueue = mLooper.mQueue;
+     mCallback = callback;
+     mAsynchronous = async;
+	 
+1. Handler.sendMessage(Message msg)
+   -> return sendMessageDelayed(msg, 0); //0是延迟时间
+   -> return sendMessageAtTime(msg, SystemClock.uptimeMillis() + delayMillis);
+      
+2. Handler.sendMessageAtTime(Message msg, long uptimeMillis) 
+   ->获取MessageQueue Handler从Looper中获取的MessageQueue. MessageQueue queue = mQueue;	 
+   ->return enqueueMessage(queue, msg, uptimeMillis);
+  
+3. Handler.enqueueMessage(MessageQueue queue, Message msg, long uptimeMillis) 
+   ->Message.target保存Handler自身。msg.target = this;
+   ->将message添加到MessageQueue消息队列中queue.enqueueMessage(msg, uptimeMillis)
+   
+MessageQueue类
+ Message mMessages;
+1. MessageQueue.enqueueMessage(Message msg, long when)
+   ->根据when排序插入msg 到mMessages中
+   	 
+
+	 
+Looper类
+   static final ThreadLocal<Looper> sThreadLocal = new ThreadLocal<Looper>();
+   private static Looper sMainLooper;  
+   final MessageQueue mQueue;
+   final Thread mThread;	
+
+1. Looper.prepareMainLooper()
+   ->创建Looper实例 prepare()
+   ->创建Looper实例 sMainLooper = myLooper();
+
+2. Looper.prepare()
+   ->创建Looper实例,并保存到sThreadLocal中。 sThreadLocal.set(new Looper(quitAllowed));   
+   
+3. Looper构造函数
+   ->创建消息队列和获取当前线程
+     mQueue = new MessageQueue(quitAllowed);
+     mThread = Thread.currentThread();   
+4. Looper.myLooper()
+   ->返回sThreadLocal保存的Looper对象 
+5. Looper.loop()
+   ->获取Looper final Looper me = myLooper();
+   ->获取MessageQueue 
+   ->final MessageQueue queue = me.mQueue;
+   ->循环从MessageQueue中读取Message;
+   ->调用保存到message中的Handler，分发消息. msg.target.dispatchMessage(msg);   
+	 
+ActivityThread类
+   
+1. ActivityThread.main()
+   ->创建Looper对象，并保存到主线程 Looper.prepareMainLooper();  
+   ->进入loop()循环，Looper.loop()   
+   
+   
+   
+   
+ActivityThread在启动是会调用Looper.prepareMainLooper();创建Looper实例Looper对象，保存到sThreadLocal中。
+Looper在构造时会创建MessageQueue对象mQueue; ActivityThread调用loop函数，进入消息队列轮询。如果获取消息
+回到消息中保存的handler.dispatchMessage()函数。dispatchMessage()函数会回调handler中的 handleMessage函数。
+handler.sendMessage调用mQueu.enqueueMessage()像消息队列中添加消息，消息的 target对象会保存handler自身。
+
+
+
+
+  
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+ActivityThread启动启动是调用LooperLooper.prepareMainLooper(); 
+   

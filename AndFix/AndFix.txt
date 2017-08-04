@@ -1,0 +1,111 @@
+
+1. PatchManatcher类
+   private static final String SUFFIX = ".apatch";
+   private static final String DIR = "apatch";
+   private static final String SP_NAME = "_andfix_";
+   private static final String SP_VERSION = "version";
+   private final Context mContext;
+   private final AndFixManager mAndFixManager;
+   private final File mPatchDir;
+   private final SortedSet<Patch> mPatchs;
+   private final Map<String, ClassLoader> mLoaders;
+   
+   构造函数
+   mContext = context;
+   mAndFixManager = new AndFixManager(mContext);
+   mPatchDir = new File(mContext.getFilesDir(), DIR);
+   mPatchs = new ConcurrentSkipListSet<Patch>();
+   mLoaders = new ConcurrentHashMap<String, ClassLoader>();
+   
+2. AndFixManager类
+   private static Map<String, Class<?>> mFixedClass = new ConcurrentHashMap<String, Class<?>>();
+   private File mOptDir;   
+   构造函数
+   ->获取patch保存空间mOptDir = new File(mContext.getFilesDir(), DIR
+   
+3. Patch类
+   private final File mFile;
+   private String mName;
+   private Date mTime;
+   private Map<String, List<String>> mClassesMap; 
+   构造函数
+   ->init();   
+
+   
+4. PatchManatcher.init()
+   ->initPatchs();
+
+5. PatchManatcher.initPatchs()
+   ->扫描Patch路径下的patch文件File[] files = mPatchDir.listFiles();
+   ->addPatch(file);
+  
+6. Patch PatchManatcher.addPatch(File file) 
+   ->后缀是".apatch"的文件file.getName().endsWith(SUFFIX)
+   ->创建Patch对象patch = new Patch(file);
+   ->patch对象保存到mPatchs中 mPatchs.add(patch);
+   
+7. mPatchManager.loadPatch();
+   ->遍历mPatchs for (Patch patch : mPatchs) 
+   -> 获取Patch补丁的集合 patchNames = patch.getPatchNames();
+   -> 获取补丁类的集合classes = patch.getClasses(patchName);
+   ->    
+
+
+8. Patch.init()
+   ->读取当前文件jarFile = new JarFile(mFile);
+   ->保存获取的类名mClassesMap.put(mName, strings);
+   ->加载补丁mAndFixManager.fix(patch.getFile(), mContext.getClassLoader(),classes);
+   
+   
+9. AndFixManager.public synchronized void fix(File file, ClassLoader classLoader, List<String> classes) 
+   ->从patch中获取dex文件final DexFile dexFile = DexFile.loadDex(file.getAbsolutePath(), optfile.getAbsolutePath(), Context.MODE_PRIVATE);
+   ->重新ClassLoader ClassLoader patchClassLoader = new ClassLoader(classLoader);
+   ->遍历dexFile.dexFile.entries() while (entrys.hasMoreElements())
+   ->如果类包含在classes中， 获取补丁中的class, clazz = dexFile.loadClass(entry, patchClassLoader);
+   ->加载补丁fixClass(clazz, classLoader);
+   
+10. AndFixManager.fixClass(Class<?> clazz, ClassLoader classLoader)
+    ->Method[] methods = clazz.getDeclaredMethods();
+	  MethodReplace methodReplace;
+	  String clz;
+	  String meth;
+   ->获取注解
+     methodReplace = method.getAnnotation(MethodReplace.class);
+	 clz = methodReplace.clazz();
+	 meth = methodReplace.method();
+	 通过注解获取类和所需要替换的方法
+  ->替换bug方法replaceMethod(ClassLoader classLoader, String clz,String meth, Method method)
+  
+11. AndFixManager.replaceMethod(ClassLoader classLoader, String clz,String meth, Method method)
+    ->获取被替换类的全称String key = clz + "@" + classLoader.toString();
+	->获取需要替换类的Class Class<?> clzz = classLoader.loadClass(clz);
+	->把类保存到mFixedClass中 mFixedClass.put(key, clazz);
+	->获取需要替换的方法Method src = clazz.getDeclaredMethod(meth, method.getParameterTypes());
+	->替换方法AndFix.addReplaceMethod(src, method);
+12. AndFixManager.void addReplaceMethod(Method src, Method dest)
+    ->	
+   
+   
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   

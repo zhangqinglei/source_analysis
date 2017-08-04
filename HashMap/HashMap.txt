@@ -1,0 +1,109 @@
+
+1. HashMap 类 
+   transient Entry[] table;//存储元素的实体数组
+   transient int size;//存放元素的个数
+   int threshold; //临界值   当实际大小超过临界值时，会进行扩容threshold = 加载因子*容量
+   final float loadFactor; //加载因子
+   transient int modCount;//被修改的次数
+   transient HashMapEntry<K,V>[] table = (HashMapEntry<K,V>[]) EMPTY_TABLE;
+   
+   
+2. HashMap V put(K key, V value)
+   ->若“key为null”，则将该键值对添加到table[0]中。
+     return putForNullKey(value);
+   ->若“key不为null”，则计算该key的哈希值，然后将其添加到该哈希值对应的链表中。
+     int hash = hash(key.hashCode());
+   ->搜索指定hash值在对应table中的索引
+     int i = indexFor(hash, table.length);
+   ->循环遍历Entry数组,若“该key”对应的键值对已经存在，则用新的value取代旧的value。然后退出！
+     for (Entry<K,V> e = table[i]; e != null; e = e.next)
+	 如果key相同则覆盖并返回旧值
+	 if (e.hash == hash && ((k = e.key) == key || key.equals(k))) { //如果key相同则覆盖并返回旧值
+        V oldValue = e.value;
+        e.value = value;
+        e.recordAccess(this);
+        return oldValue;
+     }
+   ->修改次数+1 modCount++;	 
+   ->将key-value添加到table[i]处 addEntry(hash, key, value, i);
+     
+3. HashMap static final int hash(Object key)
+   ->return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+   
+   
+4. HashMap static int hash(int h)
+   ->计算hash值的方法 通过键的hashCode来计算
+     h ^= (h >>> 20) ^ (h >>> 12);
+     return h ^ (h >>> 7) ^ (h >>> 4);
+	 
+5. static int indexFor(int h, int length) 
+   ->根据hash值和数组长度算出索引值
+   ->这里不能随便算取，用hash&(length-1)是有原因的，这样可以确保算出来的索引是在数组大小范围内，不会超出
+   ->h & (length-1) length为2^n碰撞概率最小 
+
+6. HashMap addEntry(int hash, K key, V value, int bucketIndex) 
+   ->如果如果大小超过了门限，则扩大lenght if ((size >= threshold) && (null != table[bucketIndex])) 
+     扩大为原来的2倍resize(2 * table.length);
+   ->重新计算要加入数据的hash值bucketIndex = indexFor(hash, table.length);
+   ->创建Entry加入createEntry(hash, key, value, bucketIndex);
+   
+7. HashMap resize(int newCapacity)
+   ->将table重新创建 newCapacity大小的HashMapEntry数组, HashMapEntry[] newTable = new HashMapEntry[newCapacity];
+   ->将原来的数据拷贝到新的数组中 transfer(newTable);
+   ->将新的数组替换为table table = newTable;  //再将newTable赋值给table
+   ->调整临界值 threshold = (int)(newCapacity * loadFactor);   
+
+8. HashMap createEntry(int hash, K key, V value, int bucketIndex)   
+   -> HashMapEntry<K,V> e = table[bucketIndex];
+   ->创建新的HashMapEntery保存到table table[bucketIndex] = new HashMapEntry<>(hash, key, value, e);
+   ->size++;
+   
+ HashMap  put()
+   如果key为null将此数据加入到table[0]链表中， 如果key不为空，通过hashCode计算hash值，
+   通过hasn查找table数组，如果hash值和key都相同替换原来的值，否则，创建新的HashMapEntry,
+   将HashMapEntery保存到table[hash]中。如果 size > threshold,则调整table的大小，大小为原来的
+   2倍，同时将table中的数据拷贝到新的数组中。
+   
+   
+9. HashMap get()
+   ->Entry<K,V> entry = getEntry(key);
+   ->return null == entry ? null : entry.getValue();
+
+10. HashMap Entry<K,V> getEntry(Object key)
+    ->获取hash值int hash = hash(key.hashCode());   
+    ->根据hash获取Entry链表 Entry<K,V> e = table[indexFor(hash, table.length)]
+	->遍历链表，如果key值相同返回entry.
+	
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   

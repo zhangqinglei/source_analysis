@@ -1,0 +1,54 @@
+
+1. ThreadLocal.set()
+   ->获取当前线程 Thread t = Thread.currentThread();
+   -> 获取当前线程的ThreadLocalMap变量，ThreadLocalMap map = getMap(t);
+   -> 如果map不为空map.set(this, value);
+   ->否则 createMap(t, value);
+
+2. ThreadLocalMap.set(ThreadLocal key, Object value)
+   ->获取Entry table和table.length;
+     Entry[] tab = table;
+     int len = tab.length; 
+   ->获取key int i = key.threadLocalHashCode & (len-1);
+   ->遍历Entry表获取key, ThreadLocal k = e.get();, 如果k = key ,替换e.value;
+   ->没有找到则创建新的entry, 保存到表中tab[i] = new Entry(key, value);
+   ->
+   
+   
+   
+   
+3. ThreadLocal.createMap(Thread t, T firstValue)
+   ->创建ThreadLocalMap变量 t.threadLocals = new ThreadLocalMap(this, firstValue);   
+   
+
+4. ThreadLocalMap类
+   private Entry[] table; 
+   private int size = 0;
+   private int threshold; // Default to 0   
+   构造函数
+   ->table = new Entry[INITIAL_CAPACITY]; 创建大小为16的数组
+     int i = firstKey.threadLocalHashCode & (INITIAL_CAPACITY - 1); 获取hash值
+     table[i] = new Entry(firstKey, firstValue); 创建第一个Entry
+     size = 1;
+     setThreshold(INITIAL_CAPACITY); 临界值的初始值大小为(2 / 3) * INITIAL_CAPACITY;
+	 
+	 
+5. ThreadLoca.get()
+   ->获取当前线程 Thread t = Thread.currentThread();
+   ->获取当前线程的ThreadLocalMap变量，ThreadLocalMap map = getMap(t);
+   ->获取entry,返回value  
+     ThreadLocalMap.Entry e = map.getEntry(this);
+     return (T)e.value;	 
+	 
+	 
+ThreadLocal的思想，获取当前线程，判断当前线程的ThreadLocalMap变量是否为null,是的话，创建ThreadLocalMap赋值给Thread.threadLocals;
+ThreadLocalMap构造函数常见Entry数组table。如果map不为空的话，根据hash只查找entry,如果存在的话，替换原来entry.value.否则创建新的
+entry保存到table[hash]中。如果大小超出临界值threadHold，调整map大小 临界值的大小为最大值的2/3; key是ThreadLocal变量。
+
+本质是把value保存到当前线程的ThreadLocalMap变量中。
+
+
+
+	 
+	 
+     	 

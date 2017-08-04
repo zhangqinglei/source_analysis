@@ -1,0 +1,101 @@
+
+
+1. CallStaticVoidMethod
+   ->static _ctype CallStatic##_jname##MethodV(JNIEnv* env, jclass jclazz, jmethodID methodID, va_list args)
+   ->static _ctype CallStaticVoidMethodV(JNIEnv* env, jclass jclazz, jmethodID methodID, va_list args)
+   ->callPrep(self, method, obj, false)
+     callPrep()作用是给方法压栈, 压栈成功返回class,不成功返回NULL
+   ->获取指令开始的位置ins = ((u4*)self->interpSave.curFrame) + (method->registersSize - method->insSize);
+     指令开始的位置等于registersSize - insSize。以self->interpSave.curFrame为起点。
+   ->如果是本地指令dvmIsNativeMethod(method)， 执行本地函数(*method->nativeFunc)((u4*)self->interpSave.curFrame, pResult, method, self);
+   ->否则执行解释命令dvmInterpret(self, method, pResult)
+ 
+2. ClassObject* callPrep(Thread* self, const Method* method, Object* obj, bool checkAccess) 
+   ->dvmPushInterpFrame(self, method)
+ 
+3. dvmPushInterpFrame(Thread* self, const Method* method)
+   ->stackReq = method->registersSize * 4        // params + locals
+                + sizeof(StackSaveArea) * 2     // break frame + regular frame
+                + method->outsSize * 4;         // args to other methods
+   ->stackPtr = (u1*) SAVEAREA_FROM_FP(self->interpSave.curFrame);获取栈顶
+   ->stackPtr -= sizeof(StackSaveArea);
+   ->breakSaveBlock = (StackSaveArea*)stackPtr;
+     stackPtr -= method->registersSize * 4 + sizeof(StackSaveArea);
+     saveBlock = (StackSaveArea*) stackPtr;   
+	 breakSaveBlock->prevFrame = self->interpSave.curFrame;
+     breakSaveBlock->savedPc = NULL;             // not required
+     breakSaveBlock->xtra.localRefCookie = 0;    // not required
+     breakSaveBlock->method = NULL;
+     saveBlock->prevFrame = FP_FROM_SAVEAREA(breakSaveBlock);
+     saveBlock->savedPc = NULL;                  // not required
+     saveBlock->xtra.currentPc = NULL;           // not required?
+     saveBlock->method = method;
+	 self->interpSave.curFrame = FP_FROM_SAVEAREA(saveBlock);
+	 先创建break frame,后创建regular frame
+	 
+	 
+4. void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
+   ->interpSaveState = self->interpSave;
+     self->interpSave.prev = &interpSaveState;
+     保存现有指令导prev, 接受新的指令。method, frame, insns.
+  	 self->interpSave.method = method;
+     self->interpSave.curFrame = (u4*) self->interpSave.curFrame;
+     self->interpSave.pc = method->insns;
+   ->获取执行函数stdInterp = dvmInterpretPortable;
+   ->执行(*stdInterp)(self);
+   ->获取执行结果*pResult = self->interpSave.retval;
+   
+   
+5. void dvmInterpretPortable(Thread* self)
+   ->const Method* curMethod;    // method we're interpreting
+     const u2* pc;               // program counter
+     u4* fp;                     // frame pointer
+     u2 inst;                    // current instruction
+     u4 ref;                     // 16 or 32-bit quantity fetched directly
+     u2 vsrc1, vsrc2, vdst;      // usually used for register indexes
+     const Method* methodToCall;
+     bool methodCallRange;   
+   ->定义跳转表
+     DEFINE_GOTO_TABLE(handlerTable);
+   ->curMethod = self->interpSave.method;
+     pc = self->interpSave.pc;
+     fp = self->interpSave.curFrame;
+     retval = self->interpSave.retval;   /* only need for kInterpEntryReturn? */
+     methodClassDex = curMethod->clazz->pDvmDex;
+	 
+	 
+6. #define FINISH(_offset)
+   ->将pc指针调整到offset位置 pc += offset;
+     ADJUST_PC(_offset);  
+   ->取指令
+     inst = FETCH(0); (pc[offset])
+   ->根据指令偏移跳转到响应的指令
+     goto *handlerTable[INST_INST(inst)]  
+     INST_INST(inst)获取指令inst在指令集中的偏移	 
+	 
+
+Dalvik执行方法，获取当前线程，当前线程首先将当前函数栈保存，将新的Method的pc, inns, frame赋值给interpSaveState.
+获取这真执行的入口stdInterp = dvmInterpretPortable执行函数。	 
+	 
+	 
+      
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+	 
+
+		

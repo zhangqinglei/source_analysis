@@ -1,0 +1,60 @@
+
+
+1. int dvmRawDexFileOpen(const char* fileName, const char* odexOutputName, RawDexFile** ppRawDexFile, bool isBootstrap)
+   ->DvmDex* pDvmDex = NULL;
+     char* cachedName = NULL;
+     int result = -1;
+     int dexFd = -1;
+     int optFd = -1;
+   ->生成cache文件名cachedName = dexOptGenerateCacheFileName(fileName, NULL);
+   ->生成cache文件optFd = dvmOpenCachedDexFile(fileName, cachedName, modTime,
+        adler32, isBootstrap, &newFile, /*createIfMissing=*/true);
+   ->将Dex文件拷贝到cache文件中result = copyFileToFile(optFd, dexFd, fileSize)
+   ->生成优化文件result = dvmOptimizeDexFile(optFd, dexOffset, fileSize, fileName, modTime, adler32, isBootstrap); 
+   ->解析Dex文件dvmDexFileOpenFromFd(optFd, &pDvmDex)
+   ->保存结果*ppRawDexFile = (RawDexFile*) calloc(1, sizeof(RawDexFile));
+    (*ppRawDexFile)->cacheFileName = cachedName;
+    (*ppRawDexFile)->pDvmDex = pDvmDex;
+
+2. int dvmDexFileOpenFromFd(int fd, DvmDex** ppDvmDex)
+   ->DvmDex* pDvmDex;
+     DexFile* pDexFile;
+   ->pDexFile = dexFileParse((u1*)memMap.addr, memMap.length, parseFlags);
+     解析dex文件
+   ->保存解析后的结果pDvmDex = allocateAuxStructures(pDexFile);
+3. DexFile* dexFileParse(const u1* data, size_t length, int flags)
+   ->DexFile* dexFileParse(const u1* data, size_t length, int flags)
+   ->DexFile* pDexFile = NULL;
+     const DexHeader* pHeader;   
+   ->获取OptDex头部 pDexFile->pOptHeader = (const DexOptHeader*) data;
+   ->dexParseOptData(data, length, pDexFile)解析dex
+   ->dexFileSetupBasicPointers(pDexFile, data);设置数据偏移 (StringId, TypeId等)
+   
+4. bool dexParseOptData(const u1* data, size_t length, DexFile* pDexFile)
+   ->优化数据映射到pClassLookup pDexFile->pClassLookup = (const DexClassLookup*) pOptData;
+   ->优化数据映射到pRegisterMapPool pDexFile->pRegisterMapPool = pOptData;   
+   
+5. void dexFileSetupBasicPointers(DexFile* pDexFile, const u1* data)
+   ->获取Dex头部 DexHeader *pHeader = (DexHeader*) data;
+   ->将dex信息设置到DexFile中
+     pDexFile->baseAddr = data;
+     pDexFile->pHeader = pHeader;
+     pDexFile->pStringIds = (const DexStringId*) (data + pHeader->stringIdsOff);
+     pDexFile->pTypeIds = (const DexTypeId*) (data + pHeader->typeIdsOff);
+     pDexFile->pFieldIds = (const DexFieldId*) (data + pHeader->fieldIdsOff);
+     pDexFile->pMethodIds = (const DexMethodId*) (data + pHeader->methodIdsOff);
+     pDexFile->pProtoIds = (const DexProtoId*) (data + pHeader->protoIdsOff);
+     pDexFile->pClassDefs = (const DexClassDef*) (data + pHeader->classDefsOff);
+     pDexFile->pLinkData = (const DexLink*) (data + pHeader->linkOff);
+	 
+	 
+	 
+	 
+	 
+	 
+	 
+	 
+	 
+	 
+   
+  	

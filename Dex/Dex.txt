@@ -82,6 +82,11 @@
    ->设置值File
    ->设置Method等
 
+ 加载的过程，从Dex获取Field, Method, 等信息保存到DexFile中， 创建新的ClassObject,将Field, Method， pDexFile, DvmDex
+ 这些信息填到ClassObject对象中，并保存到DexFile的LookUp中。
+ LoopUp是靠类的类名(包名+类名)生成的hash值保存到 HashMap中。
+ 
+ 
 
 
 

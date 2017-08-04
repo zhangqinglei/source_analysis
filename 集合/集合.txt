@@ -1,0 +1,31 @@
+1. Set和List接口都继承Collection接口。 
+2. Set不允许重复的对象，List允许重复的对象
+3. Collection接口
+   int size();
+   boolean isEmpty();
+   boolean contains(Object o);
+   Iterator<E> iterator();
+   Object[] toArray();
+   <T> T[] toArray(T[] a);
+   boolean add(E e);
+   boolean remove(Object o);
+   boolean containsAll(Collection<?> c);
+   boolean addAll(Collection<? extends E> c);
+   boolean removeAll(Collection<?> c);
+   boolean retainAll(Collection<?> c);
+   void clear();
+   boolean equals(Object o);
+   int hashCode();
+4. Queue
+   add        增加一个元索,如果队列已满，则抛出一个IIIegaISlabEepeplian异常
+   remove     移除并返回队列头部的元素如果队列为空，则抛出一个NoSuchElementException异常
+   element    返回队列头部的元素如果队列为空，则抛出一个NoSuchElementException异常
+   offer      添加一个元素并返回true如果队列已满，则返回false
+   poll       移除并返问队列头部的元素如果队列为空，则返回null
+   peek       返回队列头部的元素如果队列为空，则返回null
+   put        添加一个元素如果队列满，则阻塞
+   take       移除并返回队列头部的元素如果队列为空，则阻塞  
+5. ArrayBlockingQueu是有界的, LinkedBlockingQueue是无界的
+6. HashTable 调用iterator返回Iterator对象之后再调用remove会发生异常。HashTable不支持Iterator并发删除
+7.
+   
