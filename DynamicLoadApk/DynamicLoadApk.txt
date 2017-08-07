@@ -1,0 +1,192 @@
+
+
+1. DLPluginManager类
+   private final HashMap<String, DLPluginPackage> mPackagesHolder = new HashMap<String, DLPluginPackage>();
+   private int mFrom = DLConstants.FROM_INTERNAL;
+   private String mNativeLibDir = null;
+   构造函数
+   DLPluginManager(Context context)
+   mContext = context.getApplicationContext();
+   mNativeLibDir = mContext.getDir("pluginlib", Context.MODE_PRIVATE).getAbsolutePath();
+   
+2. PluginItem类
+   public PackageInfo packageInfo;
+   public String pluginPath;
+   public String launcherActivityName;
+   public String launcherServiceName;   
+   item.pluginPath = plugin.getAbsolutePath();
+   item.packageInfo = DLUtils.getPackageInfo(this, item.pluginPath);
+   item.launcherActivityName = item.packageInfo.activities[0].name;
+   mPluginItems.add(item);
+   
+3. DLIntent类
+   private String mPluginPackage;
+   private String mPluginClass;
+   构造函数 
+   DLIntent(String pluginPackage, String pluginClass)   
+   this.mPluginPackage = pluginPackage;
+   this.mPluginClass = pluginClass;
+   
+
+4. DLPluginManager.loadApk(final String dexPath) 
+   ->return loadApk(dexPath, true);
+    
+5. DLPluginManager.loadApk(final String dexPath, boolean hasSoLib)
+   ->获取PackageInfo PackageInfo packageInfo = mContext.getPackageManager().getPackageArchiveInfo(dexPath,
+                PackageManager.GET_ACTIVITIES | PackageManager.GET_SERVICES);
+   ->DLPluginPackage pluginPackage = preparePluginEnv(packageInfo, dexPath);
+   ->copySoLib(dexPath);
+   ->return pluginPackage;   
+   
+6. DLPluginManager.preparePluginEnv(PackageInfo packageInfo, String dexPath)  
+   ->首先在mPackagesHolder查找插件包是否存在，
+   ->如果存在直接返回插件 return pluginPackage;
+   ->如果不存在， 创建DexClassLoader, AssetManager和Resources, 并创建DLPluginPackage， 同时把插件保存到mPackagesHolder中
+     DexClassLoader dexClassLoader = createDexClassLoader(dexPath);
+	 AssetManager assetManager = createAssetManager(dexPath);
+     Resources resources = createResources(assetManager);
+	 pluginPackage = new DLPluginPackage(dexClassLoader, resources, packageInfo);
+	 mPackagesHolder.put(packageInfo.packageName, pluginPackage);
+	 return pluginPackage;
+	 
+7. DLPluginManager.createDexClassLoader(String dexPath)
+   ->获取dex的输出路径
+     File dexOutputDir = mContext.getDir("dex", Context.MODE_PRIVATE);
+     dexOutputPath = dexOutputDir.getAbsolutePath();
+   ->创建DexClassLoader. 
+     DexClassLoader loader = new DexClassLoader(dexPath, dexOutputPath, mNativeLibDir, mContext.getClassLoader());	
+8. DLPluginManager.createAssetManager(String dexPath)
+   ->通过反射身侧AssetManager实例
+     AssetManager assetManager = AssetManager.class.newInstance();
+   ->调用addAssetPath方法，将dexPath添加到AssetManager中
+     Method addAssetPath = assetManager.getClass().getMethod("addAssetPath", String.class);
+     addAssetPath.invoke(assetManager, dexPath);
+	 
+9. DLPluginManager.createResources(AssetManager assetManager)
+   ->根据AssetManager生成Resource
+     Resources superRes = mContext.getResources();
+     Resources resources = new Resources(assetManager, superRes.getDisplayMetrics(), superRes.getConfiguration());   
+   	 
+   
+   
+    pluginManager.startPluginActivity(this, new DLIntent(item.packageInfo.packageName, item.launcherActivityName));   
+10. DLPluginManager.startPluginActivity(Context context, DLIntent dlIntent)
+    ->获取包名 String packageName = dlIntent.getPluginPackage();
+	->根据包名获取DLPluginPackage pluginPackage = mPackagesHolder.get(packageName);
+	->获取启动类的名称final String className = getPluginActivityFullPath(dlIntent, pluginPackage);
+	->加载类Class<?> clazz = loadPluginClass(pluginPackage.classLoader, className);
+	->获取代理类Class<? extends Activity> activityClass = getProxyActivityClass(clazz);
+	->设置Intent, 并启动插件
+      dlIntent.putExtra(DLConstants.EXTRA_CLASS, className);
+      dlIntent.putExtra(DLConstants.EXTRA_PACKAGE, packageName);
+      dlIntent.setClass(mContext, activityClass);
+      performStartActivityForResult(context, dlIntent, requestCode);
+	
+11. DLPluginManager.startPluginActivityForResult(Context context, DLIntent dlIntent, int requestCode)
+    ->((Activity) context).startActivityForResult(dlIntent, requestCode);
+    
+
+12. DLPluginManager.getPluginActivityFullPath(DLIntent dlIntent, DLPluginPackage pluginPackage) 
+    ->className = dlIntent.getPluginPackage() + className;
+
+13. DLPluginManager.loadPluginClass(ClassLoader classLoader, String className)
+    ->通过Class.for()加载类 
+      clazz = Class.forName(className, true, classLoader);
+
+14. DLPluginManager.getProxyActivityClass(Class<?> clazz) 
+    ->获取代理类的class
+      activityClass = DLProxyActivity.class;	  
+	
+
+
+15. DLProxyActivity类
+    protected DLPlugin mRemoteActivity;
+    private DLProxyImpl impl = new DLProxyImpl(this);
+	
+16. DLProxyImpl类
+    private String mClass;
+    private String mPackageName;
+
+    private DLPluginPackage mPluginPackage;
+    private DLPluginManager mPluginManager;
+
+    private AssetManager mAssetManager;
+    private Resources mResources;
+    private Theme mTheme;
+
+    private ActivityInfo mActivityInfo;
+    private Activity mProxyActivity;
+    protected DLPlugin mPluginActivity;
+    public ClassLoader mPluginClassLoader; 	
+	构造函数
+	mProxyActivity = activity;
+	
+17. DLProxyActivity.onCreate()
+    ->impl.onCreate(getIntent());
+
+18. DLProxyImpl.onCreate(Intent intent)
+    ->intent.setExtrasClassLoader(DLConfigs.sPluginClassloader);
+      mPackageName = intent.getStringExtra(DLConstants.EXTRA_PACKAGE);
+      mClass = intent.getStringExtra(DLConstants.EXTRA_CLASS);	
+   ->获取DLPluginPackageManager, DLPluginPackage, AssetManager和Resources
+   ->获取 ActivityInfo 设置Activiry主题等，启动Activity
+     initializeActivityInfo();
+     handleActivityInfo();
+     launchTargetActivity();
+	 
+19. DLProxyImpl.launchTargetActivity()
+    ->获取PliginActivity
+      Class<?> localClass = getClassLoader().loadClass(mClass);
+      Constructor<?> localConstructor = localClass.getConstructor(new Class[] {});
+      Object instance = localConstructor.newInstance(new Object[] {});
+      mPluginActivity = (DLPlugin) instance;	
+	->((DLAttachable) mProxyActivity).attach(mPluginActivity, mPluginManager);  将插件类保存到代理类的mRemoteActivity中
+    ->mPluginActivity.attach(mProxyActivity, mPluginPackage); (BasePlginActivity) 将代理类保存到mProxyActivity，
+    ->mPluginActivity.onCreate(bundle);	回调代理类的onCreate();
+  
+20. DLProxyActivity.attach(DLPlugin remoteActivity, DLPluginManager pluginManager)	
+    ->将插件类保存到代理类的mRemoteActivity中 mRemoteActivity = remoteActivity;
+	
+21. DLBasePluginActivity.attach(Activity proxyActivity, DLPluginPackage pluginPackage)
+    ->将代理类保存到mProxyActivity， 
+	  mProxyActivity = (Activity) proxyActivity;
+      that = mProxyActivity;
+      mPluginPackage = pluginPackage;	
+	
+	
+	
+	
+	
+13. DLBasePluginActivity 插件必须继承DLBasePluginActivity	
+    protected Activity mProxyActivity;                 //插件只是个外衣需要借助mProxyActivity来完成生命周期。
+    protected Activity that;
+    protected DLPluginManager mPluginManager;
+    protected DLPluginPackage mPluginPackage;
+	
+
+	
+
+
+   
+DynamicLoadApk的工作原理， 宿主启动时到插件文件夹去加载插件，生成差价DLPluginPackage, 并保存到中mPackagesHolder。
+宿主启动插件时会根据包名到mPackagesHolder查找类，设置到Intent中去启动，启动插件首先生成代理插件mProxyActivity
+将mProxyActivity.class设置到Intent中，启动插件类。代理类的onCreate()放大执行时， 会获取插件类的信息（主体，风格等）
+将代理类的风格设置。同事将置身注册到插件类中mProxyActivity，插件类的生命周期和方法(setContentView等)由代理类mProxyActivity
+来执行。  
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
