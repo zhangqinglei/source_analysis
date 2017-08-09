@@ -1,0 +1,28 @@
+
+1. BufferKnife是final类
+   static final Map<Class<?>, Constructor<? extends Unbinder>> BINDINGS = new LinkedHashMap<>();
+
+2. ButterKnife.bind(Context context)
+   ->获取装饰窗口decorView View sourceView = target.getWindow().getDecorView();
+   ->return createBinding(target, sourceView);
+   
+3. BufferKnife.createBinding(@NonNull Object target, @NonNull View source) 
+   ->获取Activity class 
+     Class<?> targetClass = target.getClass();
+   ->以为targetClass为Key获取继承Unbinder的类
+     Constructor<? extends Unbinder> constructor = findBindingConstructorForClass(targetClass);
+	 
+4. BufferKnife.Constructor<? extends Unbinder> findBindingConstructorForClass(Class<?> cls)
+   ->从BINDINGSZ中查找Constructor<? extends Unbinder>
+     如果存在直接返回  Constructor<? extends Unbinder> bindingCtor = BINDINGS.get(cls);
+   ->不存在的话 
+   ->获取类名 String clsName = cls.getName(); 若果已"android"或者java开头返回null.系统类，不能使用
+   ->获取bindingClass  Class<?> bindingClass = Class.forName(clsName + "_ViewBinding");
+     例如"com.lge.MainActivity_ViewBiding"
+   ->获取构造函数 bindingCtor = (Constructor<? extends Unbinder>) bindingClass.getConstructor(cls, View.class);
+     构造函数的参数为View DecorView
+   ->把构造函数保存到BINDINGS中 BINDINGS.put(cls, bindingCtor); 	 
+   
+        
+   
+
