@@ -1,0 +1,13 @@
+
+LruCache类
+  private final LinkedHashMap<K, V> map;
+  private int size;
+  private int maxSize;
+  private int putCount;
+  private int createCount;
+  private int evictionCount;
+  private int hitCount;
+  private int missCount;
+  构造函数
+  this.maxSize = maxSize;
+  this.map = new LinkedHashMap<K, V>(0, 0.75f, true);
