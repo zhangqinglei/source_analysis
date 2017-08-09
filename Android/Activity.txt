@@ -1,0 +1,114 @@
+
+1. Activity启动模式
+   (1)Standard
+      模式启动模式，每次激活Activity时都会创建Activity，并放入任务栈中
+	  standard模式是所启动的Activity都是在同一个task容器栈下，不会重新创建新的task容器栈。
+	  
+	  先压入栈的Activity实例按顺序入栈底，后入栈在栈顶，处于栈的顶部Activity实例处于活动状态，
+	  其他处于非活动状态。按物理返回键，退出当前所处活动状态Activity窗口，这样就会从task容器栈中弹出
+	  ，显示在手机主屏幕上，从而，有非活动状态转换成活动的状态。其次，standard容器栈可能会存在着相同的Activity实例，
+	  只有没调用一次startActivity方法，就会创建目标Activity实例对象压入task容器栈。
+   (2)singleTop 
+      如果在任务的栈顶正好存在该Activity的实例， 就重用该实例，否者就会创建新的实例并放入栈顶
+	  (即使栈中已经存在该Activity实例，只要不在栈顶，都会创建实例)。  
+   (3)singleTask
+      如果在栈中已经有该Activity的实例，就重用该实例(会调用实例的onNewIntent())。重用时，会让该实例回到栈顶，
+      因此在它上面的实例将会被移除栈。如果栈中不存在该实例，将会创建新的实例放入栈中。	  
+   (4)singleInstance
+      在一个新栈中创建该Activity实例，并让多个应用共享改栈中的该Activity实例。一旦改模式的Activity的实例存在于某个栈中，
+	  任何应用再激活改Activity时都会重用该栈中的实例，其效果相当于多个应用程序共享一个应用，
+	  不管谁激活该Activity都会进入同一个应用中。   
+	  
+	  
+2. Android键对声明周期的影响
+   BACK键：
+   当我们按BACK键时，我们这个应用程序将结束，这时候我们将先后调用onPause()->onStop()->onDestory()三个方法。
+   再次启动App时，会执行onCreate()->onStart()->onResume()
+   HOME键:
+   而当我们按HOME的时候，Activity先后执行了onPause()->onStop()这两个方法，这时候应用程序并没有销毁。
+   而当我们从桌面再次启动应用程序时，则先后分别执行了onRestart()->onStart()->onResume()三个方法。
+
+3. 一般Activity切换正常生命周期(这里的一般是指启动模式为standard,切换activity时没有加flag标志)：
+   (1)ActivityA启动ActivityB：
+      ActivityA 的生命周期onPause()->onStop()，
+      ActivityB的生命周期onCreate()->onStart()->onResume()。
+   (2)ActivityB执行finish返回ActivityA：
+      ActivityB的生命周期onPause()->onStop()->onDestory()
+      ActivityA的生命周期了onRestart()->onStart()->onResume()
+	  
+4. Intent Flags
+   (1)Intent.FLAG_ACTIVITY_NEW_TASK （默认）
+      (如果没有定义Affinity)默认的跳转类型,它会重新创建一个新的Activity
+	  否则如果Affinity的值和Task中的不一样的话，则会在新标记的Affinity所存在的Task中压入这个Activity。
+	  如果是默认的或者指定的Affinity和Task一样的话，就和标准模式一样了启动一个新的Activity.	  
+   (2)FLAG_ACTIVITY_SINGLE_TOP
+      这个FLAG就相当于启动模式中的singletop，例如:原来栈中结构是A B C D，在D中启动D，栈中的情况还是A,B,C,D。
+   (3)FLAG_ACTIVITY_CLEAR_TOP
+      这个FLAG就相当于启动模式中的SingleTask，这种FLAG启动的Activity会把要启动的Activity之上的Activity全部弹出栈空间。
+	  例如：原来栈中的结构是A B C D ，从D中跳转到B，栈中的结构就变为了A B了。 
+   (4)FLAG_ACTIVITY_BROUGHT_TO_FRONT
+      如果通过该Flag启动的Activity已经存在，下次再次启动时，将只是将该Activity带到前台。例如现在Activity栈中有Activity A，
+	  此时以该Flag启动Activity B（即Activity B是以FLAG_ACTIVITY_BROUGHT_TO_FRONT旗标启动的），
+	  然后在Activity B中启动C、D，这时Activity栈中的情形是A、B、C、D。如果此时在Activity D中再启动B，
+	  将直接把Activity栈中的Activity B带到前台。此时Activity栈中的情形是A、C、D、B。
+   (5)FLAG_ACTIVITY_NO_USER_ACTION
+      onUserLeaveHint()作为activity周期的一部分，它在activity因为用户要跳转到别的activity而要退到background时使用。
+	  比如,在用户按下Home键，它将被调用。 
+   (6)FLAG_ACTIVITY_NO_HISTORY
+      意思就是说用这个FLAG启动的Activity，一旦退出，它不会存在于栈中，比如原来是A,B,C这个时候
+	  再C中以这个FLAG启动D的，D再启动E，这个时候栈中情况为A,B,C,E。  
+  
+5. Activity相关属性taskAffinity
+   (1)拥有相同的affinity的Activity理论上属于相同的Task,Task的affinity是由它的根Activity决定的。
+   (2)affinity决定两件事情——Activity重新宿主的Task（参考allowTaskReparenting特性）
+      和使用FLAG_ACTIVITY_NEW_TASK标志启动的Activity宿主的Task。 
+
+6. Android Activity 横竖屏切换的生命周期
+   onSaveInstanceState(Bundle outState) ：Activity 即将销毁时保存数据
+   onRestoreInstanceState(Bundle savedInstanceState) ： Activity 重建或者恢复时候取出数据
+   (1)不设置Activity的android:configChanges时，切屏会重新调用各个生命周期，切横屏时会执行一次，切竖屏时会执行两次
+   (2)设置Activity的android:configChanges="orientation"时，切屏还是会重新调用各个生命周期，切横、竖屏时只会执行一次
+   (3)设置Activity的android:configChanges="orientation|keyboardHidden"时，
+      切屏不会重新调用各个生命周期，只会执行onConfigurationChanged方法
+	  
+7. Activity 数据保存
+   (1)如果因为系统资源紧张而导致Activity的Destory或者旋转屏幕时被destroyed与Recreated，
+      系统会在用户回到这个Activity时有这个Activity存在过的记录，系统会使用那些保存的记录数据（instance state）
+	  它是一些存放在Bundle对象中的key-value pairs，系统默认使用 Bundle保存信息	  
+   (2)为了可以保存额外更多的数据到instance state，要重写写这个回调函数onSaveInstanceState(Bundle outState)，
+     系统会在Activity被异常Destory时传递Bundle对象，这样我们就可以增加额外的信息到Bundle中并保存到系统中。
+	 若系统在Activity被Destory之后想重新创建这个Activity实例时，之前的Bundle对象会(系统)被传递到你我们activity的 	
+   (3)Activity开始stop，系统会调用 onSaveInstanceState(Bundle outState) ，Activity可以用键值对的集合来保存状态信息。
+      这个方法会默认保存Activity视图的状态信息，如在 EditText组件中的文本或 ListView 的滑动位置	 
+8. Activity 数据恢复
+   (1)当Activity从Destory中重建，我们可以从系统传递的Activity的Bundle中恢复保存的状态。 onCreate() 
+      与 onRestoreInstanceState() 回调方法都接收到了同样的Bundle，里面包含了同样的实例状态信息。
+   (2)由于 onCreate() 方法会在第一次创建新的Activity实例与重新创建之前被Destory的实例时都被调用，
+      我们必须在尝试读取 Bundle 对象前检测它是否为null。如果它为null，系统则是创建一个新的Activity实例，
+	  而不是恢复之前被Destory的Activity。
+   (3)也可以选择实现 onRestoreInstanceState() ，而不是在onCreate方法里面恢复数据。 onRestoreInstanceState()方法会在 onStart() 
+      方法之后执行. 系统仅仅会在存在需要恢复的状态信息时才会调用 onRestoreInstanceState() ，因此不需要检查 Bundle 是否为null。	  
+         
+	  
+	  
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+	  
+    	  

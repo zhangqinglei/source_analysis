@@ -1,0 +1,17 @@
+startActivity()
+->Instrumention.execStartActivity()
+->ActivityManagerNative.getDefault().startActivity()
+->ActivityStackSupervisor.startActivityMayWait()
+->ActivityStack.resumeTopActivityInnerLocked()
+->ActivityStackSupervisor.realStartActivityLocked()
+->ActivityThread.handleLaunchActivity() 接收内部类H的消息，ApplicationThread线程发送LAUNCH_ACTIVITY消息给H
+->最终在ActivityThread#performLaunchActivity()中实现Activity的启动完成了以下几件事：
+2.从传入的ActivityClientRecord中获取待启动的Activity的组件信息
+3.创建类加载器，使用Instrumentation.newActivity()加载Activity对象
+4.调用LoadedApk.makeApplication方法尝试创建Application，由于单例所以不会重复创建。
+5.创建Context的实现类ContextImpl对象，并通过Activity#attach()完成数据初始化和Context建立联系，因为Activity是Context的桥接类，
+最后就是创建和关联window，让Window接收的事件传给Activity，在Window的创建过程中会调用ViewRootImpl的performTraversals()初始化View。
+6.Instrumentation#callActivityOnCreate()->Activity#performCreate()->Activity#onCreate().onCreate()中会通过Activity#setContentView()调用PhoneWindow的setContentView()
+更新界面。
+
+

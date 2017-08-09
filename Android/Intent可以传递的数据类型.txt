@@ -1,0 +1,43 @@
+1. Intent可以传递哪些数据类型:
+   1.Serializable
+   2.charsequence: 主要用来传递String，char等
+   3.parcelable
+   4.Bundle
+
+
+
+
+2. Json有什么优劣势
+   1.JSON的速度要远远快于XML
+   2.JSON相对于XML来讲，数据的体积小
+   3.JSON对数据的描述性比XML较差
+
+
+   1.ActivityManagerServices，简称AMS，服务端对象，负责系统中所有Activity的生命周期
+   2.ActivityThread，App的真正入口。当开启App之后，会调用main()开始运行，开启消息循环队列，
+     这就是传说中的UI线程或者叫主线程。与ActivityManagerServices配合，一起完成Activity的管理工作
+   3.ApplicationThread，用来实现ActivityManagerService与ActivityThread之间的交互。在ActivityManagerService
+     需要管理相关Application中的Activity的生命周期时，通过ApplicationThread的代理对象与ActivityThread通讯。
+   4.ApplicationThreadProxy，是ApplicationThread在服务器端的代理，负责和客户端的ApplicationThread通讯。
+     AMS就是通过该代理与ActivityThread进行通信的。
+   5.Instrumentation，每一个应用程序只有一个Instrumentation对象，每个Activity内都有一个对该对象的引用。
+     Instrumentation可以理解为应用进程的管家，ActivityThread要创建或暂停某个Activity时，都需要通过Instrumentation来进行具体的操作。
+   6.ActivityStack，Activity在AMS的栈管理，用来记录已经启动的Activity的先后关系，状态信息等。
+     通过ActivityStack决定是否需要启动新的进程。
+   7.ActivityRecord，ActivityStack的管理对象，每个Activity在AMS对应一个ActivityRecord，来记录Activity的状态以及其他的管理信息。
+     其实就是服务器端的Activity对象的映像。
+   8.TaskRecord，AMS抽象出来的一个“任务”的概念，是记录ActivityRecord的栈，一个“Task”包含若干个ActivityRecord。
+     AMS用TaskRecord确保Activity启动和退出的顺序。如果你清楚Activity的4种launchMode，那么对这个概念应该不陌生。
+
+4. CrashHandler：
+  获取app crash的信息保存在本地然后在下一次打开app的时候发送到服务器。
+  
+5. multidex解决方法数过大的问题
+
+6. ClassLoader的基础知识
+   1.双亲委托：一个ClassLoader类负责加载这个类所涉及的所有类，在加载的时候会判断该类是否已经被加载过，然后会递归去他父ClassLoader中找。
+   2.可以动态加载Jar通过URLClassLoader
+   3.ClassLoader 隔离问题 JVM识别一个类是由：ClassLoader id+PackageName+ClassName。
+
+  
+
