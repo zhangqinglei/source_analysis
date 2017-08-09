@@ -1,0 +1,43 @@
+
+1. 颜色标识: GPU过渡绘制从好到差:蓝-绿-淡红-红
+   蓝色1x过度绘制
+   绿色2x过度绘制
+   淡红色3x过度绘制
+   红色超过4x过度绘制
+2. 产生的原因
+   冗余的背景
+   嵌套的layout
+   
+3. 解决方法
+   (1)一般在Activity中，如果使用到了 setContentView(R.layout.XXX);
+      一般都会存在至少两层的绘制，一层是窗口window的绘制，一层是布局的背景（如果存在背景的话）。
+      如果是这种情况，可以将这个window背景去掉，这个背景的重绘是系统级别的,和主题有关。
+      this.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+	  去除窗口的绘制即可。
+   (2)背景layout中已经有了颜色，如果存在对应的activity，则在activity中采用this.getWindow()的方法将窗口设为透明色，
+      而layout的背景色不做处理；
+   (3)如果有一个layout中嵌套多个其他view，则保持当前layout的背景色不变，将嵌套的其他view的背景色全部改成透明色
+     （如果view的背景色和被包含的layout的背景色一致）；
+
+4.可以使用LayoutInspector检测View的层级 还有HieracherView
+
+5. 当应用Include或者ViewStub标签从外部导入xml结构时，可以将被导入的xml用merge作为根节点表示，
+   这样当被嵌入父级结构中后可以很好的将它所包含的子集融合到父级结构中，而不会出现冗余的节点。
+6. <merge />只可以作为xml layout的根节点。
+   当需要扩充的xml layout本身是由merge作为根节点的话，
+   需要将被导入的xml layout置于 viewGroup中，同时需要设置attachToRoot为True。   
+   
+7. 1)<include />标签可以使用单独的layout属性，这个也是必须使用的。
+    2)可以使用其他属性。<include />标签若指定了ID属性，而你的layout也定义了ID，则你的layout的ID会被覆盖，解决方案。
+    3)在include标签中所有的Android:layout_*都是有效的，前提是必须要写layout_width和layout_height两个属性。
+    4)布局中可以包含两个相同的include标签，引用时可以使用如下方法解决（参考）:
+
+8. <ViewStub />标签最大的优点是当你需要时才会加载，使用他并不会影响UI初始化时的性能。各种不常用的布局想进度条、
+   显示错误消息等可以使用<ViewStub />标签，以减少内存使用量，加快渲染速度。<ViewStub />是一个不可见的，
+   大小为0的View。<ViewStub />标签使用如下：	
+  
+  	 
+   
+		
+
+	
