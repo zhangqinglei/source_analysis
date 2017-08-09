@@ -3,25 +3,59 @@
    static final Map<Class<?>, Constructor<? extends Unbinder>> BINDINGS = new LinkedHashMap<>();
 
 2. ButterKnife.bind(Context context)
-   ->获取装饰窗口decorView View sourceView = target.getWindow().getDecorView();
-   ->return createBinding(target, sourceView);
+   ->bind(target, target, Finder.ACTIVITY);
    
-3. BufferKnife.createBinding(@NonNull Object target, @NonNull View source) 
+   
+   
+   
+3. BufferKnife.bind(Object target, Object source, Finder finder) 
    ->获取Activity class 
      Class<?> targetClass = target.getClass();
-   ->以为targetClass为Key获取继承Unbinder的类
-     Constructor<? extends Unbinder> constructor = findBindingConstructorForClass(targetClass);
+   ->以为targetClass为Key获取继承ViewBinder的类
+     ViewBinder<Object> viewBinder = findViewBinderForClass(targetClass);
+   ->viewBinder.bind(finder, target, source);	 
 	 
-4. BufferKnife.Constructor<? extends Unbinder> findBindingConstructorForClass(Class<?> cls)
-   ->从BINDINGSZ中查找Constructor<? extends Unbinder>
-     如果存在直接返回  Constructor<? extends Unbinder> bindingCtor = BINDINGS.get(cls);
+4. BufferKnife.findViewBinderForClass(targetClass)
+   ->从BINDINGSZ中查找ViewBinder<Object>  ViewBinder<Object> viewBinder = BINDERS.get(cls);
+     如果存在直接返回  
    ->不存在的话 
    ->获取类名 String clsName = cls.getName(); 若果已"android"或者java开头返回null.系统类，不能使用
-   ->获取bindingClass  Class<?> bindingClass = Class.forName(clsName + "_ViewBinding");
-     例如"com.lge.MainActivity_ViewBiding"
-   ->获取构造函数 bindingCtor = (Constructor<? extends Unbinder>) bindingClass.getConstructor(cls, View.class);
-     构造函数的参数为View DecorView
-   ->把构造函数保存到BINDINGS中 BINDINGS.put(cls, bindingCtor); 	 
+   ->获取viewBindingClass Class<?> viewBindingClass = Class.forName(clsName + ButterKnifeProcessor.SUFFIX);
+     例如"class com.example.lifeix.testapplication.MainActivity$$ViewBinder"
+   ->反射生成 ViewBinder, 并保存到BINDINGS中
+     viewBinder = (ViewBinder<Object>) viewBindingClass.newInstance();
+     BINDERS.put(cls, viewBinder);  
+
+5.MainActivity$$ViewBinder<T extends com.example.lifeix.testapplication.MainActivity> implements ViewBinder<T>
+  MainActivity$$ViewBinder.bind(final Finder finder, final T target, Object source)
+  ->view = finder.findRequiredView(source, 2131493026, "field 'mBrnSerialize' and method 'OnClick'");
+  ->view.setOnClickListener();
+  
+6. MainActivity$$ViewBinder.findRequiredView(Object source, int id, String who)
+   ->查找View T view = findOptionalView(source, id, who); 
+   ->将View转化为实际类型返回 return castView(view, id, who);   
+   
+   
+7. MainActivity$$ViewBinder.findOptionalView(Object source, int id, String who)
+   ->View view = findView(source, id);
+     实际调用 Activity.findViewById(id);
+	 
+8. View.setOnClickListenrt()
+   ->在listener中回调Activity中的onClick方法。
+
+
+ButterKnife的设计思想， 采用注解的方式将View ID, method赋值给注解，Activity启动时会检查注解
+获取相应的View.Id,根据ID获取View.同事调用View.setOnClickListener方法，在onClik(View v)
+将回调Activity中注解的method,将View传递给method
+
+public @interface ViewBinder {
+
+    int id() default -1;
+    String method() default "";
+    String type() default "";
+}   
+   	 
+    
    
         
    

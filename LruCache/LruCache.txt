@@ -11,3 +11,19 @@ LruCache类
   构造函数
   this.maxSize = maxSize;
   this.map = new LinkedHashMap<K, V>(0, 0.75f, true);
+  
+1. LruCache.put(K key, V value)
+   ->记录添加次数 计算大小
+   ->putCount++;
+     size += safeSizeOf(key, value);
+     previous = map.put(key, value);
+     if (previous != null) {
+         size -= safeSizeOf(key, previous);
+       }
+    
+
+    if (previous != null) {
+         entryRemoved(false, key, previous, value);
+    }
+
+    trimToSize(maxSize);
