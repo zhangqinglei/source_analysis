@@ -1,0 +1,185 @@
+
+
+1. Http工作流程
+   1）首先客户机与服务器需要建立连接。只要单击某个超级链接，HTTP的工作开始。
+   2）建立连接后，客户机发送一个请求给服务器，请求方式的格式为：统一资源标识符（URL）、协议版本号，
+      后边是MIME信息包括请求修饰符、客户机信息和可能的内容。
+   3）服务器接到请求后，给予相应的响应信息，其格式为一个状态行，包括信息的协议版本号、
+      一个成功或错误的代码，后边是MIME信息包括服务器信息、实体信息和可能的内容。
+   4）4）客户端接收服务器所返回的信息通过浏览器显示在用户的显示屏上，然后客户机与服务器断开连接。
+   
+2. 一个完整的URL包括以下几部分：(协议://域名：端口/虚拟目录/文件)
+   (1)协议部分：该URL的协议部分为“http：”，这代表网页使用的是HTTP协议。在Internet中可以使用多种协议，
+      如HTTP，FTP等等本例中使用的是HTTP协议。在"HTTP"后面的“//”为分隔符
+   (2)域名部分：该URL的域名部分为“www.aspxfans.com”。一个URL中，也可以使用IP地址作为域名使用	  
+   (3)端口部分：跟在域名后面的是端口，域名和端口之间使用“:”作为分隔符。端口不是一个URL必须的部分，
+      如果省略端口部分，将采用默认端口
+   (4)虚拟目录部分：从域名后的第一个“/”开始到最后一个“/”为止，是虚拟目录部分。虚拟目录也不是一个URL必须的部分。
+      本例中的虚拟目录是“/news/”	
+   (5)文件名部分：从域名后的最后一个“/”开始到“？”为止
+   (6)参数部分：从“？”开始到“#”为止之间的部分为参数部分，又称搜索部分、查询部分。本例中的参数部分为
+      “boardID=5&ID=24618&page=1”。参数可以允许有多个参数，参数与参数之间用“&”作为分隔符。
+ 
+二. HTTP协议详解之请求篇
+    http请求由三部分组成，分别是：请求行、消息报头、请求正文
+	1. 请求行以一个方法符号开头，以空格分开，后面跟着请求的URI和协议的版本，格式如下：Method Request-URI HTTP-Version CRLF  
+	   Method表示请求方法；
+	   Request-URI是一个统一资源标识符；
+	   HTTP-Version表示请求的HTTP协议版本；
+	   CRLF表示回车和换行（除了作为结尾的CRLF外，不允许出现单独的CR或LF字符）。
+	   
+	2. 请求方法（所有方法全为大写）有多种，各个方法的解释如下：
+	   GET     请求获取Request-URI所标识的资源
+	   POST    在Request-URI所标识的资源后附加新的数据
+	   HEAD    请求获取由Request-URI所标识的资源的响应消息报头
+	   PUT     请求服务器存储一个资源，并用Request-URI作为其标识
+	   DELETE  请求服务器删除Request-URI所标识的资源
+	   TRACE   请求服务器回送收到的请求信息，主要用于测试或诊断
+	   CONNECT 保留将来使用
+	   OPTIONS 请求查询服务器的性能，或者查询与资源相关的选项和需求
+	   
+	3. 例子
+       (1)GET /562f25980001b1b106000338.jpg HTTP/1.1
+          Host    img.mukewang.com
+          User-Agent    Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36
+          Accept    image/webp,image/*,*/*;q=0.8
+          Referer    http://www.imooc.com/
+          Accept-Encoding    gzip, deflate, sdch
+          Accept-Language    zh-CN,zh;q=0.8	
+	   
+	   (2)POST方法要求被请求服务器接受附在请求后面的数据，常用于提交表单。
+	      POST / HTTP1.1
+          Host:www.wrox.com
+          User-Agent:Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 2.0.50727; .NET CLR 3.0.04506.648; .NET CLR 3.5.21022)
+          Content-Type:application/x-www-form-urlencoded
+          Content-Length:40
+          Connection: Keep-Alive
+          name=Professional%20Ajax&publisher=Wiley
+		  
+		  第一部分：请求行，第一行明了是post请求，以及http1.1版本。
+		  第二部分：请求头部，第二行至第六行。
+		  第三部分：空行，第七行的空行。
+          第四部分：请求数据，第八行。
+		  
+	   (3)HEAD方法与GET方法几乎是一样的，对于HEAD请求的回应部分来说，它的HTTP头部中包含的信息与通过GET请求所得到的信息是相同的。
+	      利用这个方法，不必传输整个资源内容，就可以得到Request-URI所标识的资源的信息。该方法常用于测试超链接的有效性，
+		  是否可以访问，以及最近是否更新
+		  
+		  
+三. HTTP协议详解之响应篇
+    在接收和解释请求消息后，服务器返回一个HTTP响应消息。
+	HTTP响应也是由三个部分组成，分别是：状态行、消息报头、响应正文
+	1. 状态行格式如下：
+	   HTTP-Version Status-Code Reason-Phrase CRLF
+	   其中，HTTP-Version表示服务器HTTP协议的版本；Status-Code表示服务器发回的响应状态代码；Reason-Phrase表示状态代码的文本描述。
+	   状态代码有三位数字组成，第一个数字定义了响应的类别，且有五种可能取值：
+	   1xx：指示信息--表示请求已接收，继续处理
+	   2xx：成功--表示请求已被成功接收、理解、接受
+	   3xx：重定向--要完成请求必须进行更进一步的操作
+	   4xx：客户端错误--请求有语法错误或请求无法实现
+       5xx：服务器端错误--服务器未能实现合法的请求
+	   
+	   常见状态代码、状态描述、说明：
+       200 OK      //客户端请求成功
+       400 Bad Request  //客户端请求有语法错误，不能被服务器所理解
+       401 Unauthorized //请求未经授权，这个状态代码必须和WWW-Authenticate报头域一起使用 
+       403 Forbidden  //服务器收到请求，但是拒绝提供服务
+       404 Not Found  //请求资源不存在，eg：输入了错误的URL
+       500 Internal Server Error //服务器发生不可预期的错误
+       503 Server Unavailable  //服务器当前不能处理客户端的请求，一段时间后可能恢复正常
+       eg：HTTP/1.1 200 OK （CRLF）
+	
+	2. 响应报头后述   
+	3. 响应正文就是服务器返回的资源的内容 
+	
+四. HTTP协议详解之消息报头篇
+    HTTP消息由客户端到服务器的请求和服务器到客户端的响应组成。请求消息和响应消息都是由开始行（对于请求消息，开始行就是请求行，
+	对于响应消息，开始行就是状态行），消息报头（可选），空行（只有CRLF的行），消息正文（可选）组成。
+	
+	HTTP消息报头包括普通报头、请求报头、响应报头、实体报头。
+    每一个报头域都是由名字+“：”+空格+值 组成，消息报头域的名字是大小写无关的。
+	
+	1、普通报头
+	在普通报头中，有少数报头域用于所有的请求和响应消息，但并不用于被传输的实体，只用于传输的消息
+	eg：
+    Cache-Control   用于指定缓存指令，缓存指令是单向的（响应中出现的缓存指令在请求中未必会出现），且是独立的
+	（一个消息的缓存指令不会影响另一个消息处理的缓存机制），HTTP1.0使用的类似的报头域为Pragma。
+   请求时的缓存指令包括：no-cache（用于指示请求或响应消息不能缓存）、no-store、max-age、max-stale、min-fresh、only-if-cached;
+   响应时的缓存指令包括：public、private、no-cache、no-store、no-transform、must-revalidate、proxy-revalidate、max-age、s-maxage.
+   eg：为了指示IE浏览器（客户端）不要缓存页面，服务器端的JSP程序可以编写如下：response.sehHeader("Cache-Control","no-cache");
+   //response.setHeader("Pragma","no-cache");作用相当于上述代码，通常两者//合用
+   这句代码将在发送的响应消息中设置普通报头域：Cache-Control:no-cache
+   
+   2、请求报头
+   请求报头允许客户端向服务器端传递请求的附加信息以及客户端自身的信息。
+   常用的请求报头
+   Accept
+   Accept请求报头域用于指定客户端接受哪些类型的信息。
+     eg：Accept：image/gif，表明客户端希望接受GIF图象格式的资源；Accept：text/html，表明客户端希望接受html文本。
+   Accept-Charset
+   Accept-Charset请求报头域用于指定客户端接受的字符集。
+     eg：Accept-Charset:iso-8859-1,gb2312.如果在请求消息中没有设置这个域，缺省是任何字符集都可以接受。
+   Accept-Encoding
+   Accept-Encoding请求报头域类似于Accept，但是它是用于指定可接受的内容编码。
+     eg：Accept-Encoding:gzip.deflate.如果请求消息中没有设置这个域服务器假定客户端对各种内容编码都可以接受。
+   Accept-Language
+   Accept-Language请求报头域类似于Accept，但是它是用于指定一种自然语言。
+     eg：Accept-Language:zh-cn.如果请求消息中没有设置这个报头域，服务器假定客户端对各种语言都可以接受。
+   Authorization
+   Authorization请求报头域主要用于证明客户端有权查看某个资源。当浏览器访问一个页面时，如果收到服务器的响应代码为401（未授权），
+   可以发送一个包含Authorization请求报头域的请求，要求服务器对其进行验证。
+	
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+	   
+   
+   
+   
+      
