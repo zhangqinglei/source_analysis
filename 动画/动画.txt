@@ -1,0 +1,22 @@
+
+1. 三种动画： 视图动画，帧动画，属性动画
+   
+2. android:fillAfter	setFillAfter(boolean)	控件动画结束时是否保持动画最后的状态
+   android:fillBefore	setFillBefore(boolean)	控件动画结束时是否还原到开始动画前的状态
+   android:repeatCount	setRepeatCount(int)	重复次数
+   
+
+3. 帧动画
+   1）boolean setVisible( boolean visible, boolean restart)： 作用前面已经说明了，其返回值表示新的可见性与之前状态不同；
+   2）void start()：开始动画执行，如果动画正在执行，此方法无效；不能在onCreate调用，如果有必要界面启动就运行动画，则在onWindowFocusChanged中调用；
+   3）void stop()：停止动画执行，如果动画不再执行，则此方法无效；
+   4）boolean isRunning()：返回动画是否正在执行；
+   5）void unscheduleSelf(Runnable what)：取消当前动画上计划执行的一个Runnable，一般这个Runnable都是用于绘制下一帧的；
+   6）int getNumberOfFrames()：获取当前动画的帧数量；
+   7）Drawable getFrame( int index)：获取指定位置的帧；
+   8）int getDuration( int i)：获取指定位置帧的展示时长；
+   9）boolean isOneShot()：获取动画是执行性一次还是无限循环，true只执行一次，false无限循环；
+   10）void setOneShot( boolean oneShot)：设置动画是执行一次还是无限循环；
+   11）void addFrame(@NonNull Drawable frame, int duration)：添加一个帧到动画序列中；
+   12）Drawable mutate()：
+   13）void clearMutated()：   
