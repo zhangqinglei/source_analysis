@@ -1,0 +1,223 @@
+
+
+Window类
+   private Callback mCallback; Activity
+   private WindowManager mWindowManager;
+   private IBinder mAppToken;
+   private String mAppName;
+   private boolean mHardwareAccelerated;
+   private Window mContainer;
+   private int mFeatures;
+   
+PhoneWindow
+  private ViewGroup mContentParent;
+  private LayoutInflater mLayoutInflater;
+  private TextView mTitleView;  
+  private ActionBarView mActionBar;
+  
+  构造函数
+  mLayoutInflater = LayoutInflater.from(context);
+
+
+1. PhoneWindow继承Window
+2. Decor是FrameLayout变量,属于PhoneWindow
+3. Activity继承Window.Callback
+
+
+4. Activity类
+   private Application mApplication;
+   Intent mIntent;
+   String mReferrer;
+   private ComponentName mComponent;
+   ActivityInfo mActivityInfo;
+   ActivityThread mMainThread;
+   Activity mParent;
+   private WindowManager mWindowManager;
+ 
+5. Activity.attach()
+   ->mWindow = new PhoneWindow(this, window);
+     mWindow.setWindowControllerCallback(this);
+     mWindow.setCallback(this);
+     mWindow.setOnWindowDismissedCallback(this);
+	 mMainThread = aThread;
+     mInstrumentation = instr;
+     mToken = token;
+     mIdent = ident;
+     mApplication = application;
+     mIntent = intent;
+     mReferrer = referrer;
+     mComponent = intent.getComponent();
+     mActivityInfo = info;
+     mTitle = title;
+     mParent = parent;
+     mEmbeddedID = id;
+	 mWindow.setWindowManager(
+                (WindowManager)context.getSystemService(Context.WINDOW_SERVICE),
+                mToken, mComponent.flattenToString(),
+                (info.flags & ActivityInfo.FLAG_HARDWARE_ACCELERATED) != 0);
+				
+6. Window.setWindowManager(WindowManager wm, IBinder appToken, String appName, boolean hardwareAccelerated)
+   ->mAppToken = appToken;
+     mAppName = appName;
+	 wm = (WindowManager)mContext.getSystemService(Context.WINDOW_SERVICE);
+	 mWindowManager = ((WindowManagerImpl)wm).createLocalWindowManager(this);
+
+7. Window.createLocalWindowManager(Window parentWindow) 
+   ->return new WindowManagerImpl(mContext, parentWindow);
+
+8. WindowManagerImpl类
+   private final WindowManagerGlobal mGlobal = WindowManagerGlobal.getInstance();
+   private final Context mContext;
+   private final Window mParentWindow;
+   构造函数
+   mContext = context;
+   mParentWindow = parentWindow;
+   
+   
+   
+Activty包含Window类 mWindow, Window.setWindowManager保存mAppWidowToken, 获取WindowManager.
+同时创建WindowImp类， 添加View都是有WindowManagerImpl中的WindowManagerGloba完成
+
+9. Activity.setContentView(int layoutResID)
+   ->getWindow().setContentView(layoutResID);
+     initWindowDecorActionBar();
+	 
+10. Window.setContentView()
+    ->如果mContentParent 为空调用installDecor();  
+	->否则mContentParent.removeAllViews();
+	->
+	
+11. PhoneWindow.installDecor()
+    ->创建mDecor mDecor = generateDecor();
+	->创建mContentParent mContentParent = generateLayout(mDecor);
+	->设置mTitleView 如果style 为no_title mTitleView.setVisibility(View.GONE); 
+	DecorView包含mConentParent 和mTitleView
+	
+	->
+12. PhoneWindow.generateDecor()
+    ->new DecorView(getContext(), -1)
+	  DecorView extends FrameLayout implements RootViewSurfaceTaker
+	  
+13. ActivityThread.handleResumeActivity(IBinder token, boolean clearHide, boolean isForward)
+   ->r.window = r.activity.getWindow();  
+     View decor = r.window.getDecorView();  
+     decor.setVisibility(View.INVISIBLE);  
+     ViewManager wm = a.getWindowManager();  
+     WindowManager.LayoutParams l = r.window.getAttributes();  
+     a.mDecor = decor;  
+     l.type = WindowManager.LayoutParams.TYPE_BASE_APPLICATION;  
+	 wm.addView(decor, l);  
+	 
+14. WindowManagerImpl.addView();
+    ->将mDefaultToke赋值给LayoutParams.token; applyDefaultToken(params)
+	->mGlobal.addView(view, params, mContext.getDisplay(), mParentWindow);
+	->root = new ViewRootImpl(view.getContext(), display);
+	->view.setLayoutParams(wparams);
+	->mViews.add(view);
+      mRoots.add(root);
+      mParams.add(wparams);
+	  root.setView(view, wparams, panelParentView);
+
+15. ViewRootImpl类
+    final WindowManager.LayoutParams mWindowAttributes = new WindowManager.LayoutParams();
+    final W mWindow;
+    View mView;
+	int mWidth;
+    int mHeight;
+    Rect mDirty;
+    boolean mIsAnimating;
+	构造函数
+	mContext = context;
+    mWindowSession = WindowManagerGlobal.getWindowSession();
+    mDisplay = display;
+    mBasePackageName = context.getBasePackageName();
+    mThread = Thread.currentThread();
+    mWidth = -1;
+    mHeight = -1;
+    mDirty = new Rect(); 
+    mWinFrame = new Rect();
+    mWindow = new W(this); 
+    mAttachInfo = new View.AttachInfo(mWindowSession, mWindow, display, this, mHandler, this);
+	
+16. WindowManagerImpl.setView(View view, WindowManager.LayoutParams attrs, View panelParentView)
+    ->mView = view;
+	->mWindowAttributes.copyFrom(attrs);
+	->mSoftInputMode = attrs.softInputMode;
+	->mAttachInfo.mRootView = view;
+	->mInputQueue = new InputQueue();
+      mInputQueueCallback.onInputQueueCreated(mInputQueue);
+	->mSoftInputMode = attrs.softInputMode;
+    ->requestLayout();
+	
+17. WindowManagerImpl.requestLayout()
+    ->mLayoutRequested = true;
+	->scheduleTraversals();
+
+18. WindowManagerImpl.scheduleTraversals()
+    ->mTraversalScheduled = true;
+	->performTraversals();
+19. WindowManagerImpl.performTraversals()
+    ->final View host = mView;
+	-> mIsInTraversal = true;
+       mWillDrawSoon = true;
+       boolean windowSizeMayChange = false;
+       WindowManager.LayoutParams lp = mWindowAttributes;
+	->performMeasure()
+	->performLayout(lp, mWidth, mHeight);
+	->performDraw();
+	
+20. WindowManagerImpl.performMeasure(childWidthMeasureSpec, childHeightMeasureSpec);
+    ->mView.measure(childWidthMeasureSpec, childHeightMeasureSpec);
+	
+21. ViewGroup.addView(View child)
+    -> addView(View child, int index)
+	->LayoutParams params = child.getLayoutParams();
+	->addView(child, index, params);
+
+22. ViewGroup.addView(View child, int index, LayoutParams params) 
+    ->requestLayout();
+      invalidate(true);
+      addViewInner(child, index, params, false);
+	  
+23. ViewGroup. requestLayout()
+    ->ViewRootImpl viewRoot = getViewRootImpl();
+	->mParent.requestLayout();
+	
+	ViewGroup继承ViewParent
+	
+       
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+
+	
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+				

@@ -1,0 +1,66 @@
+
+1. Gradle会默认预定义三个maven仓库：Jcenter和mavenCentral以及本地maven仓库。
+   repositories {
+       mavenCentral()
+       jcenter()
+       mavenLocal()
+   }
+   
+   
+2. 有些组织，创建了一些有意思的插件或者library,他们更愿意把这些放在自己的maven库，而不是maven中心库或jcenter。
+   那么当你需要是要这些仓库的时候，你只需要在maven方法中加入url地址就好：
+   repositories {
+       maven {
+           url "http://repo.acmecorp.com/maven2"
+       }
+   }
+
+3. 如果你想为你的工程添加jar文件作为依赖，你可以这样：
+   dependencies {
+       compile files('libs/domoarigato.jar')
+   }
+   
+   dependencies {
+       compile fileTree('libs')
+   }
+
+4. 默认情况下，新建的Android项目会有一个lib文件夹，并且会在依赖中这么定义（即添加所有在libs文件夹中的jar）：
+   dependencies {
+       compile fileTree(dir: 'libs', include: ['*.jar'])
+   }
+
+5. 创建和使用依赖工程模块
+   apply plugin: 'com.android.library'
+   如果你想使用该模块，你需要在你的依赖里面添加它，就像这样:
+   compile project(':library')
+   
+6. 如果你想复用你的library，那么你就可以创建一个aar文件，并将其作为你的工程依赖。当你构建你的library项目，
+   aar文件将会在 build/output/aar/下生成。把该文件作为你的依赖包，你需要创建一个文件夹来放置它，
+   我们就叫它aars文件夹吧，然后把它拷贝到该文件夹里面，然后添加该文件夹作为依赖库：
+   repositories {
+    flatDir {
+        dirs 'aars' 
+    }
+   }
+7. 这样你就可以把该文件夹下的所有aar文件作为依赖，同时你可以这么干：
+    dependencies {
+       compile(name:'libraryname', ext:'aar')
+    }
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   	
