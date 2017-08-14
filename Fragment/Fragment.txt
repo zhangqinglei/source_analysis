@@ -1,0 +1,94 @@
+
+1. Fragment生命周期 onAttach()->onCreate()->onCreateView()->->onActivityCreate()
+                    ->onStart()->onResume()->onPause()->onStop()->onDestoryView()
+					->onDetach();
+					
+					
+					
+2. Activity生命周期和Fragment生命周期对比
+   Activity (onCreate()) : Fragment(onAttach()->onCreate()->onCreateView()->onActivityCreate())
+   Activity(onStart()) : Fragment(onStart())
+   Activity(onResume()) : Fragment(onResume())
+   Activity(onStop()) : Fragment(onStop())
+   Activity(onDestory()) :Fragment(onDestoryView()->onDestory()->onDetach())
+   
+3. onAttach(Activity)当Fragment与Activity发生关联时调用。
+   onCreateView(LayoutInflater, ViewGroup,Bundle)创建该Fragment的视图
+   onActivityCreated(Bundle)当Activity的onCreate方法返回时调用
+   onDestoryView()与onCreateView想对应，当该Fragment的视图被移除时调用
+   onDetach()与onAttach相对应，当Fragment与Activity关联被取消时调用
+   
+   
+4. android.app.Fragment 主要用于定义Fragment
+   android.app.FragmentManager 主要用于在Activity中操作Fragment
+   android.app.FragmentTransaction 保证一些列Fragment操作的原子性，
+   
+5. 获取FragmentManage的方式：
+   getFragmentManager() // v4中，getSupportFragmentManager
+  
+6. 主要的操作都是FragmentTransaction的方法
+   FragmentTransaction transaction = fm.benginTransatcion();//开启一个事务
+   transaction.add() 
+   往Activity中添加一个Fragment
+   transaction.remove() 
+   从Activity中移除一个Fragment，如果被移除的Fragment没有添加到回退栈（回退栈后面会详细说），这个Fragment实例将会被销毁。
+   transaction.replace()
+   使用另一个Fragment替换当前的，实际上就是remove()然后add()的合体~
+   transaction.hide()
+   隐藏当前的Fragment，仅仅是设为不可见，并不会销毁
+   transaction.show()
+   显示之前隐藏的Fragment
+   detach()
+   会将view从UI中移除,和remove()不同,此时fragment的状态依然由FragmentManager维护。
+   attach()
+   重建view视图，附加到UI上并显示。
+   transatcion.commit()//提交一个事务
+   
+   
+6. viewPager.setAdapter(mAdapter);
+   tabLayout.setTabMode(TabLayout.MODE_SCROLLABLE);
+   tabLayout.setupWithViewPager(viewPager);
+   ArrayList<BaseFragment> fragments = new ArrayList<>();
+   fragments.add(new MedialistCommonPage(context , items.get(i).getLinkBean().getTargetId()));
+   mAdapter.setFragments(fragments , categories);
+    private XTabLayout tabLayout; //tab导航
+    private ViewPager viewPager;  //添加Fragments
+    private ImageView add_box;
+	
+  <com.androidkun.xtablayout.XTabLayout
+                android:id="@+id/tl_home_page2"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="@dimen/x120"
+                android:background="@drawable/tablayout_bg"
+                android:layout_marginRight="@dimen/x30"
+                app:xTabMode="scrollable"
+                app:xTabIndicatorColor="#fff"
+                app:xTabSelectedTextColor="@color/red"
+                app:xTabTextColor="#000"
+                app:xTabTextSize="@dimen/x36"
+                app:xTabSelectedTextSize="@dimen/x48"
+                />
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
