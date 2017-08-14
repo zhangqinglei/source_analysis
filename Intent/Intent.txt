@@ -1,0 +1,73 @@
+
+
+1. ProxyHook类
+   ProxyHook extends Hook implements InvocationHandler
+   
+2. Object invoke(Object proxy, Method method, Object[] args)
+   ->HookedMethodHandler hookedMethodHandler = mHookHandles.getHookedMethodHandler(method);
+   ->return hookedMethodHandler.doHookInner(mOldObj, method, args);
+
+
+3. 引用启动时候会加载PliginHelper. Application.onCreate()
+   ->PluginHelper.getInstance().applicationOnCreate(getBaseContext());
+     ->PluginHelper.initPlugin(baseContext);
+       ->PluginProcessManager.installHook(baseContext);
+         ->HookFactory.getInstance().installHook(hostContext, null);
+           ->installHook(new IClipboardBinderHook(context), classLoader);
+             installHook(new ISearchManagerBinderHook(context), classLoader);
+             installHook(new INotificationManagerBinderHook(context), classLoader);
+             installHook(new IMountServiceBinderHook(context), classLoader);
+             installHook(new IAudioServiceBinderHook(context), classLoader);
+             installHook(new IContentServiceBinderHook(context), classLoader);
+             installHook(new IWindowManagerBinderHook(context), classLoader);
+			 installHook(new IPackageManagerHook(context), classLoader);
+             installHook(new IActivityManagerHook(context), classLoader);
+             installHook(new PluginCallbackHook(context), classLoader);
+             installHook(new InstrumentationHook(context), classLoader);
+             installHook(new LibCoreHook(context), classLoader);
+			 ->installHook(Hook hook, ClassLoader cl) 
+             ->hook.onInstall(cl);
+
+
+4. IActivityManagerHook类
+   class IActivityManagerHook extends ProxyHook		
+   
+5. IActivityManagerHook.onInstall(ClassLoader classLoader)
+   ->通过反射获取IActivityManagerNative.gDefault变量
+     Class cls = ActivityManagerNativeCompat.Class();
+     Object obj = FieldUtils.readStaticField(cls, "gDefault");
+   ->Class[] ifs = interfaces != null && interfaces.size() > 0 ? interfaces.toArray(new Class[interfaces.size()]) : new Class[0];
+     Object proxiedActivityManager = MyProxy.newProxyInstance(objClass.getClassLoader(), ifs, this);
+	 获取 gDefault的对象接口，生成其代理， 将代理替换掉原来的变量
+     FieldUtils.writeStaticField(cls, "gDefault", proxiedActivityManager);
+     用代理proxiedActivityManager替换gDefault。	 
+	 
+	 首先获取全局的IActivityManager对象gDefault，然后通过Proxy.newProxyInstance()创建一个代理对象，
+	 最后用这个代理对象替换掉之前的gDefault（gDefault变成了mOldObj）。 IActivityManagerHook是这个代理对象的InvocationHandler，
+	 因此所有的API调用都会走到它的invoke()方法中来。这样所有路径就都打通了。
+	 
+6. InstrumentationHook
+   这个PluginInstrumentation是继承自Instrumentation的，
+   覆盖了父类了下面这些方法。这些方法里会增加一些额外的处理，最终通过mTarget完成系统服务的调用。
+
+7. 第一个API是最被经常使用的startActivity()，hook的方法上一篇已经介绍过了，
+   主要是通过Java的反射机制替换掉IActivityManager全局对象，具体参见IActivityManager的onInstall()方法。
+
+8. 第二个API是handleLaunchActivity()，这个API隶属于ActivityThread的一个叫做H的内部类，该类继承自Handler，
+   ActivityThread有一个该类型的成员变量mH。scheduleLaunchActivity()里会发送一个LAUNCH_ACTIVITY类型的消息，
+   该消息被mH捕获并调用handleLaunchActivity()。说到这里，大家应该很容易想到如何hook这个API了，直接把这个mH对象通过反射替换掉呗  
+
+
+我们启动activity的时候，最终会通过ActivityManagerNative.getDefault()获取一个全局的IActivityManager代理对象，然后通过binder远程调用到AMS那边。
+Droid Plugin会先通过反射替换掉这个全局对象，然后通过动态代理技术修改所有系统API实现。
+这样虽然外部的应用程序看起来还是调用的系统API，但是实际上内部已经被偷梁换柱了。
+
+实际原理是修改DexClassLoader,通过Proxy.newProxyInstance生成ActivityThread中的对象，将ActivityThread中的对象修改为
+代理对象，然后实际执行时，代理对象通过重写的DexClassLoader加载插件类。
+DexClassLoader.loadClass(String className, boolean resolve) 
+->Class<?> Class<?> clazz = findClass(className);
+  return clazz;
+   
+		
+			
+   

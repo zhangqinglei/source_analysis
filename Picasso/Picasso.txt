@@ -18,6 +18,7 @@
    volatile boolean loggingEnabled;
    boolean shutdown;
    
+   
 2. BitmapHunter类继承Runnable
    final int sequence;
     final Picasso picasso;
@@ -56,7 +57,71 @@
         this.retryCount = requestHandler.getRetryCount();
 		
 3. Dispatcher类
-   final Downloader downloader; //UrlConnectionDownloader; 		
+   private static final int RETRY_DELAY = 500;
+   private static final int AIRPLANE_MODE_ON = 1;
+   private static final int AIRPLANE_MODE_OFF = 0;
+   static final int REQUEST_SUBMIT = 1;
+   static final int REQUEST_CANCEL = 2;
+   static final int REQUEST_GCED = 3;
+   static final int HUNTER_COMPLETE = 4;
+   static final int HUNTER_RETRY = 5;
+   static final int HUNTER_DECODE_FAILED = 6;
+   static final int HUNTER_DELAY_NEXT_BATCH = 7;
+   static final int HUNTER_BATCH_COMPLETE = 8;
+   static final int NETWORK_STATE_CHANGE = 9;
+   static final int AIRPLANE_MODE_CHANGE = 10;
+   static final int TAG_PAUSE = 11;
+   static final int TAG_RESUME = 12;
+   static final int REQUEST_BATCH_RESUME = 13;
+   private static final String DISPATCHER_THREAD_NAME = "Dispatcher";
+   private static final int BATCH_DELAY = 200;
+   final Dispatcher.DispatcherThread dispatcherThread = new Dispatcher.DispatcherThread();
+   final Context context;
+   final ExecutorService service;
+   final Downloader downloader;
+   final Map<String, BitmapHunter> hunterMap;
+   final Map<Object, Action> failedActions;
+   final Map<Object, Action> pausedActions;
+   final Set<Object> pausedTags;
+   final Handler handler;
+   final Handler mainThreadHandler;
+   final Cache cache;
+   final Stats stats;
+   final List<BitmapHunter> batch;
+   final Dispatcher.NetworkBroadcastReceiver receiver;
+   final boolean scansNetworkChanges;
+   boolean airplaneMode;
+
+4. RequestCreator类   
+   private final Picasso picasso;
+   private final Builder data;
+   private boolean noFade;
+   private boolean deferred;
+   private boolean setPlaceholder = true;
+   private int placeholderResId;
+   private int errorResId;
+   private int memoryPolicy;
+   private int networkPolicy;
+   private Drawable placeholderDrawable;
+   private Drawable errorDrawable;
+   private Object tag;
+
+4. ImageViewAction类
+   class ImageViewAction extends Action<ImageView>
+5. Action类  
+   final Picasso picasso;
+   final Request request;
+   final WeakReference<T> target;
+   final boolean noFade;
+   final int memoryPolicy;
+   final int networkPolicy;
+   final int errorResId;
+   final Drawable errorDrawable;
+   final String key;
+   final Object tag;
+   boolean willReplay;
+   boolean cancelled;
+    
     	
    
 2. Picasso.Builder.build()
@@ -70,17 +135,34 @@
    ->返回Picasso实例 return new Picasso(context, dispatcher, this.cache, this.listener, this.transformer, this.requestHandlers, 
 								stats, this.defaultBitmapConfig, this.indicatorsEnabled, this.loggingEnabled);
    
-3. Picasso.load()
-    ->创建RequestCreator return new RequestCreator(this, uri, 0);
+3. Picasso.load(String url)
+    ->如果url为空创建RequestCreator return new RequestCreator(this, uri, 0);
+	->否则return this.load(Uri.parse(path));
+
+3. RequestCreator构造函数
+   -> 如果Picasso关闭(shutdown)抛出异常
+   ->this.picasso = picasso;
+     this.data = new Builder(uri, resourceId, picasso.defaultBitmapConfig);
 
 4. RequestCreator.into(ImageView target) 
    ->如果build变量检测到图片不为空，取消请求， 获取Drawable赋给ImageView PicassoDrawable.setPlaceholder(target, this.getPlaceholderDrawable());
    ->从LruCache中获取bitmap, 如果不为空删除请求直接复制给ImageView。
    ->创建Request Request request1 = this.createRequest(started);
+     ->获取Key String requestKey1 = Utils.createKey(request1);
+	 ->检测缓存策略是否从内存中读取 MemoryPolicy.shouldReadFromMemoryCache(this.memoryPolicy) 
+	 ->如果读取， 如多是的话从缓存中读取Bitmap action = this.picasso.quickMemoryCacheCheck(requestKey1);
+	 ->quickMemoryCacheCheck(String Key)
+	   ->Bitmap cached = this.cache.get(key);
+	     如果Cache不为空， 分发命中this.stats.dispatchCacheHit();
+		 this.handler.sendEmptyMessage(0);
+	 
    ->创建ImageViewAction  ImageViewAction action1 = new ImageViewAction(this.picasso, target, 
                           request1, this.memoryPolicy, this.networkPolicy, this.errorResId, this.errorDrawable, 
 						  requestKey1, this.tag, callback, this.noFade);
    ->将action提交到分发器this.picasso.enqueueAndSubmit(action1);
+   
+   
+   
 
 5. Picasso.enqueueAndSubmit(Action action)
    ->在targetToAction中查找是不Action已经存在，不存在则添加新的action target为Key
@@ -105,6 +187,25 @@
 9. BitmapHunter.run()
    ->hunt();
    ->this.dispatcher.dispatchComplete(this); 主要是处理 this.result;
+
+9. BitmapHunter.hunt()
+   ->首先从内存缓存中获取，如果不为空直接返回Bitmap
+   ->其次从 NetworRequestHandelr中获取Result result = this.requestHandler.load(this.data, this.networkPolicy);
+   ->如果bitmap = result.getBitmap(); 如果Bitmap不为空直接返回，
+   ->否则读取文件流解析Bitmap.
+   
+10. NetworRequestHandelr.load()
+    ->OKHttpDownloader.load(Uri uri, int networkPolicy)
+	
+11. OKHttpDownloader.load(Uri uri, int networkPolicy)
+    ->设置CacheControl
+	->NetworkPolicy.shouldReadFromDiskCache(networkPolicy)
+	  NetworkPolicy.shouldWriteToDiskCache(networkPolicy)
+	->执行OKHttpClient请求
+	  com.squareup.okhttp.Response response = this.client.newCall(builder1.build()).execute();
+	->ResponseBody responseBody = response.body();
+	->封装请求结果返回
+      return new Response(responseBody.byteStream(), fromCache, responseBody.contentLength());	
    
 10. Dispatcher.dispatchComplete(BitmapHunter hunter)
     ->通过Handler发送hunter. this.handler.sendMessage(this.handler.obtainMessage(4, hunter));
@@ -140,12 +241,18 @@
     ->return new Response(connection.getInputStream(), fromCache, contentLength1);
     将	connection.getInputStream()封装到Response中返回。
 	
+	
   
   
    
    
    
    
+   如果url或者资源ID获取失败首先从ImageVeiw holder中获取，没有的话从缓存中获取，如果缓存中没有则封装ImageViewAction，
+   发出请求，请求首先从本地缓存中查询，没有的话网络请求。
+   RequestCreator封装ImageViewAction，调用Picasso.enqueueAndSubmit(action1);
+   Picasso调用dispatcher.dispatchSubmit(action)发送action . 实际通过Handler调用。
+   Dispatcher创建BitmapHunter线程类塞到线程池中。执行请求。
    
    (1)Picasso将ImageView封装成ImageViewAction action
    (2)Picasso将 action交给Dispstcher处理
@@ -155,11 +262,14 @@
    (6)得到缓存Dispatcher通过handler处理结果performComplete， 如果需要缓存的话则将结果缓存， hunterMap移除BitmapHunter
    (7)将hunter添加到Dipstather 的batch中。发到主线程. 主线程Handler在Picasso类中定义
    (8)从hunter中获取ImageViewAction action 和bitmap;
-   (9)action给图片赋值。
+   (9)action给图片赋值,调用ImgeViewAction给的ImageView赋值。
    
    
    
    Picasso内存策略 1.内存 2.磁盘 3.网络
+   
+   加载的时候如果检测到有图片Builder.setPlaceholder. 直接设置ImageView drawable  
+   (ImageView)target.setImageDrawable(placeholderDrawable);
    
    
    

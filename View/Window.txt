@@ -185,6 +185,7 @@ Activty包含Window类 mWindow, Window.setWindowManager保存mAppWidowToken, 获取Wind
 	
 	ViewGroup继承ViewParent
 	
+	
        
 	
 	

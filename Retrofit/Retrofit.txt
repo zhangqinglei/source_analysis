@@ -1,3 +1,17 @@
+Retrofit类
+  private final Map<Method, ServiceMethod> serviceMethodCache = new LinkedHashMap<>(); 
+  private final okhttp3.Call.Factory callFactory;   //callFactory = new OkHttpClient();
+  private final HttpUrl baseUrl;                    //请求
+  private final List<Converter.Factory> converterFactories; 
+  private final List<CallAdapter.Factory> adapterFactories; //ExecutorCallAdapterFactory
+  private final Executor callbackExecutor; //Android平台 MainThreadExecutor implements Executor 
+  
+  
+
+MainThreadExecutor类
+  private final Handler handler = new Handler(Looper.getMainLooper());
+  
+
 1. retrofit采用代理+注解方案
 2. Retrofit.Builder() 
    (1) 创建平台Platform PLATFORM = findPlatform() 创建平台Android Android类继承Platform类
@@ -68,6 +82,12 @@
     ->	createRawCall() okhttp3.Call call = serviceMethod.callFactory.newCall(request);
 	callFactory是HttpClient.
 	-> rawCall.enqueue(); 进入OKHttp调用。
+	
+	
+	原理创建CallAdapter(ExeutorCallAdapter)， 返回类型， 参数类型等保存的Service中。
+	CallAdapter.adapter(Call call); 创建new ExecutorCallbackCall<>(callbackExecutor, call)；
+	Call<ResponseBody>是ExecutorCallbackCall。
+	执行Call.enqueue(Callback);
    
    
    
