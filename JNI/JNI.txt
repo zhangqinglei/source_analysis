@@ -1,0 +1,16 @@
+
+1. jclass clazz;
+   jmethodID mid;
+   jfieldID field;
+   jobject obj;
+   jsttring string;
+   
+   fid = env->GetStaticField(clazz, "num", "I");
+   clazz = env->FindClass("JniTest");
+   mid = env->GetMethodID(clazz, "show", "(I)V");
+   fid = env->getField(clazz, "num1", "I");
+   
+   jclass objClass = env->GetObjectClass(newObj);
+   mid = env->getMethodID(objClass, "getSum", "(II)I");
+   jint result = env->CallIntMethod(newObj, mid, 10, 20);
+   env->SetIntField(newObj, fid, 100);

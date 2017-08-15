@@ -23,3 +23,7 @@
                 ActivityManagerNative.getDefault());  
       service.onCreate();  
       mServices.put(data.token, service);
+	  
+	  
+3. startService第一次启动时会调用OnCreate()和onStart(),以后只会调用onStart();
+   stopService()会调用到onDestory();
