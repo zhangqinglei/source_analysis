@@ -16,4 +16,39 @@
 7.RetentionPolicy.SOURCE —— 这种类型的Annotations只在源代码级别保留,编译时就会被忽略
 8.RetentionPolicy.CLASS —— 这种类型的Annotations编译时被保留,在class文件中存在,但JVM将会忽略
 9.RetentionPolicy.RUNTIME —— 这种类型的Annotations将被JVM保留,所以他们能在运行时被JVM或其他使用反射机制
+
+
+10. 使用forName()会自动初始化该Class对象。为了使用类而做的准备工作一般有以下3个步骤：
+    加载：由类加载器完成，找到对应的字节码，创建一个Class对象
+    链接：验证类中的字节码，为静态域分配空间
+    初始化：如果该类有超类，则对其初始化，执行静态初始化器和静态初始化块
+	
+11. Class.getName()获得名字全程 "com.lge.example.Child"
+    Class.getSimpleName()只获得类名 "Child" 
     
+
+
+12. getMethods()返回某个类的所有公用（public）方法包括其继承类的公用方法，当然也包括它所实现接口的方法。
+    getDeclaredMethods()对象表示的类或接口声明的所有方法，包括公共、保护、默认（包）访问和私有方法，
+	但不包括继承的方法。当然也包括它所实现接口的方法  
+
+13. Java有两种加载器
+    (1)启动类加载器(BootStrap ClassLoader) C++实现
+    (2)	其他类加载器(Java实现) 并且都是继承java.lang.ClassLoader;
+	
+	(3)启动类加载器在<JAVA_HOME>\lib路径下 或者Xbootclasspath指定
+	(4)拓展类加载器(Extension ClassLoader) 由sum.misc.Launcher$ExtClassLoader实现。
+	   在<JAVA_HOME>\lib\ext目录下
+	(5)应用程序ClassLoader sum.misc.Launcher$AppClassLoader。getSystemClassLoader();
+       一般也称系统类加载器。
+    (6)自定义加载器。
+	
+14. 栈帧存储了局部变量， 操作数栈， 动态链接和返回地址等信息。
+
+
+
+
+
+	   
+	
+	

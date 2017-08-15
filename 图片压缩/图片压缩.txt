@@ -1,0 +1,84 @@
+1.质量压缩 
+public static void compressImageToFile(Bitmap bmp,File file) {
+    // 0-100 100为不压缩
+    int options = 100; 
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    // 把压缩后的数据存放到baos中
+    bmp.compress(Bitmap.CompressFormat.JPEG, options, baos);
+    try {  
+        FileOutputStream fos = new FileOutputStream(file);  
+        fos.write(baos.toByteArray());  
+        fos.flush();  
+        fos.close();  
+    } catch (Exception e) {  
+        e.printStackTrace();  
+    } 
+}
+
+
+   
+   
+3. 像素格式压缩
+   ALPHA_8 
+  表示8位Alpha位图,即A=8,一个像素点占用1个字节,它没有颜色,只有透明度 
+  ARGB_4444 
+  表示16位ARGB位图，即A=4,R=4,G=4,B=4,一个像素点占4+4+4+4=16位，2个字节 
+  ARGB_8888 
+  表示32位ARGB位图，即A=8,R=8,G=8,B=8,一个像素点占8+8+8+8=32位，4个字节 
+  RGB_565 
+  表示16位RGB位图,即R=5,G=6,B=5,它没有透明度,一个像素点占5+6+5=16位，2个字节
+  
+4. 采样率压缩
+   BitmapFactory.Options options = new BitmapFactory.Options();
+   options.inSampleSize = 2;
+   
+   
+   
+5. BitmapFactory.Options提供了inJustDecodeBounds标志位，当它被设置为true后，
+   再使用decode系列方法时，并不会真正的分配内存空间  
+   BitmapFactory.Options options = new BitmapFactory.Options();    
+   options.inJustDecodeBounds = true;    
+   BitmapFactory.decodeResource(getResources(), R.id.myimage, options);    
+   int imageHeight = options.outHeight;    
+   int imageWidth = options.outWidth;    
+   String imageType = options.outMimeType;    
+   
+   private Bitmap getimage(String srcPath) {
+        BitmapFactory.Options newOpts = new BitmapFactory.Options();
+        //开始读入图片，此时把options.inJustDecodeBounds 设回true了
+        newOpts.inJustDecodeBounds = true;
+        Bitmap bitmap = BitmapFactory.decodeFile(srcPath,newOpts);//此时返回bm为空
+
+        newOpts.inJustDecodeBounds = false;
+        int w = newOpts.outWidth;
+        int h = newOpts.outHeight;
+        //现在主流手机比较多是800*480分辨率，所以高和宽我们设置为
+        float hh = 800f;//这里设置高度为800f
+        float ww = 480f;//这里设置宽度为480f
+        //缩放比。由于是固定比例缩放，只用高或者宽其中一个数据进行计算即可
+        int be = 1;//be=1表示不缩放
+        if (w > h && w > ww) {//如果宽度大的话根据宽度固定大小缩放
+            be = (int) (newOpts.outWidth / ww);
+        } else if (w < h && h > hh) {//如果高度高的话根据宽度固定大小缩放
+            be = (int) (newOpts.outHeight / hh);
+        }
+        if (be <= 0)
+            be = 1;
+        newOpts.inSampleSize = be;//设置缩放比例
+        //重新读入图片，注意此时已经把options.inJustDecodeBounds 设回false了
+        bitmap = BitmapFactory.decodeFile(srcPath, newOpts);
+        return compressImage(bitmap);//压缩好比例大小后再进行质量压缩
+    }
+   
+   
+   
+private LruCache<String, Bitmap> mMemoryCache = new LruCache<String, Bitmap>  
+((int)(Runtime.getRuntime().maxMemory()/8)){   
+//用最大内存的1/8分配给这个集合使用  
+//让这个集合知道每个图片的大小  
+@Override  
+protected int sizeOf(String key, Bitmap value){  
+int byteCount = value.getRowBytes() * value.getHeight();//计算图片大小，每行字节数*高度  
+return byteCount;  
+  }  
+};   
