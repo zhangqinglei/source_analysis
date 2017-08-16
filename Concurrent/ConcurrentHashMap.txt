@@ -1,0 +1,223 @@
+
+CurrentHashMap类
+private static final int MAXIMUM_CAPACITY = 1 << 30
+
+1.7 // 将整个hashmap分成几个小的map，每个segment都是一个锁；与hashtable相比，这么设计的目的是对于put, remove等操作，可以减少并发冲突，对
+    // 不属于同一个片段的节点可以并发操作，大大提高了性能
+
+
+
+1. Java1.7初始化 
+   public ConcurrentHashMap(int initialCapacity,
+                             float loadFactor, int concurrencyLevel) {
+        if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0)
+            throw new IllegalArgumentException();
+        if (concurrencyLevel > MAX_SEGMENTS)
+            concurrencyLevel = MAX_SEGMENTS;   //1
+        int sshift = 0;
+        int ssize = 1;
+        while (ssize < concurrencyLevel) {
+            ++sshift;
+            ssize <<= 1;    //2
+        }
+        this.segmentShift = 32 - sshift;  //3
+        this.segmentMask = ssize - 1;   //4
+        if (initialCapacity > MAXIMUM_CAPACITY)  //MAXIMUM_CAPACITY= 1 << 30
+            initialCapacity = MAXIMUM_CAPACITY;
+        int c = initialCapacity / ssize;
+        if (c * ssize < initialCapacity)
+            ++c;
+        int cap = MIN_SEGMENT_TABLE_CAPACITY;
+        while (cap < c)
+            cap <<= 1;
+        Segment<K,V> s0 =
+            new Segment<K,V>(loadFactor, (int)(cap * loadFactor),
+                             (HashEntry<K,V>[])new HashEntry[cap]);//5
+        Segment<K,V>[] ss = (Segment<K,V>[])new Segment[ssize]; //6
+        UNSAFE.putOrderedObject(ss, SBASE, s0); 
+        this.segments = ss;
+    }
+	
+	整个初始化是通过参数initialCapacity(初始容量)，loadFactor(增长因子)和concurrencyLevel(并发等级)
+	来初始化segmentShift（段偏移量）、segmentMask（段掩码）和segment数组。
+	注释1: 最大的并发等级不能超过MAX_SEGMENTS 1<<16(也就是1的二进制向左移16位,65535)
+	注释2: 如果你传入的是15 就是向上取2的4次方倍 也就是16.
+	注释3和4: segmentShift和segmentMask在定位segment使用，segmentShift = 32 - ssize向左移位的次数，segmentMask = ssize - 1。
+	ssize的最大长度是65536，对应的 segmentShift最大值为16，segmentMask最大值是65535，对应的二进制16位全为1；
+	注释5和6: 初始化segment
+	1.初始化每个segment的HashEntry长度；
+	2.创建segment数组和segment[0]。
+	   
+
+2. Java 1.7 get操作
+   public V get(Object key) {
+        Segment<K,V> s; 
+        HashEntry<K,V>[] tab;
+        int h = hash(key);  //1
+        long u = (((h >>> segmentShift) & segmentMask) << SSHIFT) + SBASE;
+        if ((s = (Segment<K,V>)UNSAFE.getObjectVolatile(segments, u)) != null &&  //2
+            (tab = s.table) != null) {
+            for (HashEntry<K,V> e = (HashEntry<K,V>) UNSAFE.getObjectVolatile
+                     (tab, ((long)(((tab.length - 1) & h)) << TSHIFT) + TBASE);
+                 e != null; e = e.next) {
+                K k;
+                if ((k = e.key) == key || (e.hash == h && key.equals(k)))
+                    return e.value;
+            }
+        }
+        return null;
+    }
+	
+	注释1: 根据key计算hash值
+	注释2: 根据计算出的hash值定位segment 如果segment不为null segment.table也不为null 跳转进里面的循环
+	里面的一大段东西 大致讲的就是通过hash值定位segment中对应的HashEntry 遍历HashEntry,如果key存在,返回key对应的value 如果不存在则返回null
+	
+
+3. Java 1.7put操作
+
+   public V put(K key, V value) {
+        Segment<K,V> s;
+        if (value == null)
+            throw new NullPointerException();
+        int hash = hash(key);
+        int j = (hash >>> segmentShift) & segmentMask;
+        if ((s = (Segment<K,V>)UNSAFE.getObject          
+             (segments, (j << SSHIFT) + SBASE)) == null) 
+            s = ensureSegment(j);
+        return s.put(key, hash, value, false);
+    }
+	
+	1.判断值是否为null
+	2.计算hash值
+	3.定位segment 如果不存在，则创建
+	4.调用segment的put方法
+	
+	final V put(K key, int hash, V value, boolean onlyIfAbsent) {
+            HashEntry<K,V> node = tryLock() ? null :
+                scanAndLockForPut(key, hash, value);  //1
+            V oldValue;
+            try {
+                HashEntry<K,V>[] tab = table;
+                int index = (tab.length - 1) & hash;
+                HashEntry<K,V> first = entryAt(tab, index);  //2
+                for (HashEntry<K,V> e = first;;) { //3
+                    if (e != null) {
+                        K k;
+                        if ((k = e.key) == key ||
+                            (e.hash == hash && key.equals(k))) {
+                            oldValue = e.value;
+                            if (!onlyIfAbsent) {
+                                e.value = value;
+                                ++modCount;
+                            }
+                            break;
+                        }
+                        e = e.next;
+                    }
+                    else {
+                        if (node != null)
+                            node.setNext(first);
+                        else
+                            node = new HashEntry<K,V>(hash, key, value, first);
+                        int c = count + 1;
+                        if (c > threshold && tab.length < MAXIMUM_CAPACITY)
+                            rehash(node);
+                        else
+                            setEntryAt(tab, index, node);
+                        ++modCount;
+                        count = c;
+                        oldValue = null;
+                        break;
+                    }
+                }
+            } finally {
+                unlock();
+            }
+            return oldValue;
+        }
+		
+		
+		注释1: 获取锁 ，保证线程安全
+		注释2:定位到具体的HashEntry
+		注释3: 遍历HashEntry链表,如果key已存在 再判断传入的onlyIfAbsent的值 ,再决定是否覆盖旧值.
+		最后释放锁,返回旧值.
+		
+1.8 final V putVal(K key, V value, boolean onlyIfAbsent) {
+    if (key == null || value == null) throw new NullPointerException();
+    int hash = spread(key.hashCode());
+    int binCount = 0;
+    for (Node<K,V>[] tab = table;;) {
+        Node<K,V> f; int n, i, fh;
+        // 如果table为空，初始化；否则，根据hash值计算得到数组索引i，如果tab[i]为空，直接新建节点Node即可。注：tab[i]实质为链表或者红黑树的首节点。
+        if (tab == null || (n = tab.length) == 0)
+            tab = initTable();
+        else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {
+            if (casTabAt(tab, i, null,
+                         new Node<K,V>(hash, key, value, null)))
+                break;                   // no lock when adding to empty bin
+        }
+        // 如果tab[i]不为空并且hash值为MOVED，说明该链表正在进行transfer操作，返回扩容完成后的table。
+        else if ((fh = f.hash) == MOVED)
+            tab = helpTransfer(tab, f);
+        else {
+            V oldVal = null;
+            // 针对首个节点进行加锁操作，而不是segment，进一步减少线程冲突
+            synchronized (f) {
+                if (tabAt(tab, i) == f) {
+                    if (fh >= 0) {
+                        binCount = 1;
+                        for (Node<K,V> e = f;; ++binCount) {
+                            K ek;
+                            // 如果在链表中找到值为key的节点e，直接设置e.val = value即可。
+                            if (e.hash == hash &&
+                                ((ek = e.key) == key ||
+                                 (ek != null && key.equals(ek)))) {
+                                oldVal = e.val;
+                                if (!onlyIfAbsent)
+                                    e.val = value;
+                                break;
+                            }
+                            // 如果没有找到值为key的节点，直接新建Node并加入链表即可。
+                            Node<K,V> pred = e;
+                            if ((e = e.next) == null) {
+                                pred.next = new Node<K,V>(hash, key,
+                                                          value, null);
+                                break;
+                            }
+                        }
+                    }
+                    // 如果首节点为TreeBin类型，说明为红黑树结构，执行putTreeVal操作。
+                    else if (f instanceof TreeBin) {
+                        Node<K,V> p;
+                        binCount = 2;
+                        if ((p = ((TreeBin<K,V>)f).putTreeVal(hash, key,
+                                                       value)) != null) {
+                            oldVal = p.val;
+                            if (!onlyIfAbsent)
+                                p.val = value;
+                        }
+                    }
+                }
+            }
+            if (binCount != 0) {
+                // 如果节点数>＝8，那么转换链表结构为红黑树结构。
+                if (binCount >= TREEIFY_THRESHOLD)
+                    treeifyBin(tab, i);
+                if (oldVal != null)
+                    return oldVal;
+                break;
+            }
+        }
+    }
+    // 计数增加1，有可能触发transfer操作(扩容)。
+    addCount(1L, binCount);
+    return null;
+}
+
+如果table 为空创建table,  如果tab[i]为空创建Node<K, V>, 如果获取的Node不为空， Synchronized(Node)
+更新或插入Node。 如果首节点为TreeBin类型，说明为红黑树结构，执行putTreeVal操作。
+
+
+5. CopyOnWriteArrayList在线程对其进行变更操作的时候，会拷贝一个新的数组以存放新的字段，因此写操作性能很差；
+   而Collections.synchronizedList读操作采用了synchronized，因此读性能较差。以下为测试程序：
+6. CopyOnWriteArrayList的所有方法都是同步方法synchronized, 添加的时候数组会拷贝。 读取的时候由于被synchronized所以读取性能也比较差。
