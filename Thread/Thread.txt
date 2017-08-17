@@ -1,0 +1,200 @@
+1. 对于sleep()方法，我们首先要知道该方法是属于Thread类中的。而wait()方法，则是属于Object类中的。
+2. sleep()方法导致了程序暂停执行指定的时间，让出cpu该其他线程，但是他的监控状态依然保持者，
+   当指定的时间到了又会自动恢复运行状态。
+3. 在调用sleep()方法的过程中，线程不会释放对象锁。
+
+4.而当调用wait()方法的时候，线程会放弃对象锁，进入等待此对象的等待锁定池，只有针对此对象调用notify()
+  方法后本线程才进入对象锁定池准备获取对象锁进入运行状态。
+  
+5. Thread的名称定义
+   "Thread-" + nextThreadNum()
+   ->nextThreadNum()获取线程ID的方式 return threadInitNumber++;
+   
+
+6. 如果Thread对象Runnable对象 target 不为空， 线程run()方法执行时会回调Runnable.run()方法。
+
+7. Thread.exit()方法会把线程相关对象清空。 
+   ->if (group != null) {
+            group.threadTerminated(this);
+            group = null;
+        }
+        
+        target = null;
+        threadLocals = null;
+        inheritableThreadLocals = null;
+        inheritedAccessControlContext = null;
+        blocker = null;
+        uncaughtExceptionHandler = null;
+		
+		
+8. 每个对象都有一个机锁来控制同步访问。Synchronized关键字可以和对象的机锁交互，来实现线程的同步。
+9. 由于sleep()方法是Thread类的方法，因此它不能改变对象的机锁。所以当在一个Synchronized方法中
+   调用sleep（）时，线程虽然休眠了，但是对象的机锁没有被释放，其他线程仍然无法访问这个对象。
+   而wait()方法则会在线程休眠的同时释放掉机锁，其他线程可以访问该对象。		
+   
+10. Yield()方法是停止当前线程，让同等优先权的线程运行。如果没有同等优先权的线程，
+   那么Yield()方法将不会起作用。
+   
+11. 一个线程结束的标志是：run()方法结束。
+12. 一个机锁被释放的标志是：synchronized块或方法结束。
+
+13. object.wait(long)必须在synchronized的块下来使用，调用了之后失去对object的monitor,
+    这样做的好处是它不影响其它的线程对object进行操作。
+	
+14. 但是wait()和sleep()都可以通过interrupt()方法打断线程的暂停状态，从而使线程立刻抛出InterruptedException。
+    
+15. 1) sleep()使当前线程进入停滞状态，所以执行sleep()的线程在指定的时间内肯定不会执行；yield()
+       只是使当前线程重新回到可执行状态，所以执行yield()的线程有可能在进入到可执行状态后马上又被执行。
+    2) sleep()可使优先级低的线程得到执行的机会，当然也可以让同优先级和高优先级的线程有执行的机会；
+	   yield()只能使同优先级的线程有执行的机会。
+
+
+Thread类
+
+    /* ThreadLocal values pertaining to this thread. This map is maintained
+     * by the ThreadLocal class. */
+    ThreadLocal.ThreadLocalMap threadLocals = null;
+
+    /*
+     * InheritableThreadLocal values pertaining to this thread. This map is
+     * maintained by the InheritableThreadLocal class.
+     */
+    ThreadLocal.ThreadLocalMap inheritableThreadLocals = null;
+
+    /*
+     * The requested stack size for this thread, or 0 if the creator did
+     * not specify a stack size.  It is up to the VM to do whatever it
+     * likes with this number; some VMs will ignore it.
+     */
+    private long stackSize;
+
+    /*
+     * JVM-private state that persists after native thread termination.
+     */
+    private long nativeParkEventPointer;
+
+    /*
+     * Thread ID
+     */
+    private long tid;
+
+    /* For generating thread ID */
+    private static long threadSeqNumber;
+
+    /* Java thread status for tools,
+     * initialized to indicate thread 'not yet started'
+     */
+
+    private volatile int threadStatus = 0;
+	
+	
+	/**
+         * Thread state for a thread which has not yet started.
+         */
+        NEW,
+
+        /**
+         * Thread state for a runnable thread.  A thread in the runnable
+         * state is executing in the Java virtual machine but it may
+         * be waiting for other resources from the operating system
+         * such as processor.
+         */
+        RUNNABLE,
+
+        /**
+         * Thread state for a thread blocked waiting for a monitor lock.
+         * A thread in the blocked state is waiting for a monitor lock
+         * to enter a synchronized block/method or
+         * reenter a synchronized block/method after calling
+         * {@link Object#wait() Object.wait}.
+         */
+        BLOCKED,
+
+        /**
+         * Thread state for a waiting thread.
+         * A thread is in the waiting state due to calling one of the
+         * following methods:
+         * <ul>
+         *   <li>{@link Object#wait() Object.wait} with no timeout</li>
+         *   <li>{@link #join() Thread.join} with no timeout</li>
+         *   <li>{@link LockSupport#park() LockSupport.park}</li>
+         * </ul>
+         *
+         * <p>A thread in the waiting state is waiting for another thread to
+         * perform a particular action.
+         *
+         * For example, a thread that has called <tt>Object.wait()</tt>
+         * on an object is waiting for another thread to call
+         * <tt>Object.notify()</tt> or <tt>Object.notifyAll()</tt> on
+         * that object. A thread that has called <tt>Thread.join()</tt>
+         * is waiting for a specified thread to terminate.
+         */
+        WAITING,
+
+        /**
+         * Thread state for a waiting thread with a specified waiting time.
+         * A thread is in the timed waiting state due to calling one of
+         * the following methods with a specified positive waiting time:
+         * <ul>
+         *   <li>{@link #sleep Thread.sleep}</li>
+         *   <li>{@link Object#wait(long) Object.wait} with timeout</li>
+         *   <li>{@link #join(long) Thread.join} with timeout</li>
+         *   <li>{@link LockSupport#parkNanos LockSupport.parkNanos}</li>
+         *   <li>{@link LockSupport#parkUntil LockSupport.parkUntil}</li>
+         * </ul>
+         */
+        TIMED_WAITING,
+
+        /**
+         * Thread state for a terminated thread.
+         * The thread has completed execution.
+         */
+        TERMINATED;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   

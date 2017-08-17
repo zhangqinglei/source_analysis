@@ -139,7 +139,9 @@ Activty包含Window类 mWindow, Window.setWindowManager保存mAppWidowToken, 获取Wind
     mWindow = new W(this); 
     mAttachInfo = new View.AttachInfo(mWindowSession, mWindow, display, this, mHandler, this);
 	
-16. WindowManagerImpl.setView(View view, WindowManager.LayoutParams attrs, View panelParentView)
+16. WindowManagerImpl.addView(View view, WindowManager.LayoutParams attrs, View panelParentView)
+    WindowManagerGlobaladdView(View view, WindowManager.LayoutParams attrs, View panelParentView)
+	->ViewRootImpl.(View view, WindowManager.LayoutParams attrs, View panelParentView) ;
     ->mView = view;
 	->mWindowAttributes.copyFrom(attrs);
 	->mSoftInputMode = attrs.softInputMode;
@@ -147,6 +149,7 @@ Activty包含Window类 mWindow, Window.setWindowManager保存mAppWidowToken, 获取Wind
 	->mInputQueue = new InputQueue();
       mInputQueueCallback.onInputQueueCreated(mInputQueue);
 	->mSoftInputMode = attrs.softInputMode;
+	
     ->requestLayout();
 	
 17. WindowManagerImpl.requestLayout()
@@ -157,6 +160,9 @@ Activty包含Window类 mWindow, Window.setWindowManager保存mAppWidowToken, 获取Wind
     ->mTraversalScheduled = true;
 	->performTraversals();
 19. WindowManagerImpl.performTraversals()
+    请求WindowManagerService绘制测量内容区域，可见区域等。
+	内容区域大小是有WindowManagerService测量确定的
+	确定内容区域后开始测量子View onMeasure(), onLayout(), onDraw();
     ->final View host = mView;
 	-> mIsInTraversal = true;
        mWillDrawSoon = true;

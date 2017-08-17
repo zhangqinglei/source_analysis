@@ -83,6 +83,19 @@
    线程池执行Runnable.run()回调Callable.call()方法.   
    
    
+10. ThreadPoolExecutor.submit(Callable<T> task);
+    submit()方法是在ThreadPoolExecutor的父类AbstractExecutorService中调用的，将Callable封到Runnable中
+	调用ThreadPoolExecutor.execute(Runable r)执行
+    ->调用将Callable封装到FutureTask()中。
+	->RunnableFuture<T>  ftask = newTaskFor(task); return new FutureTask<T>(callable);
+	->执行FutureTask execute(ftask);
+	  FutureTask是Runnable的子类。 FutureTask在run()方法中回调Callable.call()方法。
+	  FutureTask继承RunnableFuture类， RunnableFuture继承Runable和Future类， 
+	  submit()方法返回Future类型实际返回FutureTask类。所以Future查询状态等于FutureTask查询自身
+	  FutureTask.run()方法中的状态。
+	  
+   
+   
    
    ThreadPoolExecutor.execute调用addWorker()方法将runnable封装到Worker类中， Worker类创建线程Thread,
    由addWorker()方法调用执行t.start();

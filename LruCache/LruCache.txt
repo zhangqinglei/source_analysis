@@ -27,3 +27,77 @@ LruCache类
     }
 
     trimToSize(maxSize);
+	
+	
+2. LruCache是一个泛型类，内部通过LinkedHashMap以强引用的方式存储缓存对象，
+   它本身也提供了get和put方法供外界调用。另外它是线程安全的：
+   //先缓存后再取出
+   mLruCache.put(path, bitmap);
+   mImageView.setImageBitmap(mLruCache.get(path));
+   
+3. DiskLruCache
+   public static DiskLruCache open(File directory, int appVersion, int valueCount, long maxSize)
+   
+   private File getDiskCacheDir(String folderName) {
+		String cachePath;
+		if(Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED) && !Environment.isExternalStorageRemovable()){
+			cachePath = getExternalCacheDir().getPath();
+		}else{
+			cachePath = getCacheDir().getPath();
+		}
+		return new File(cachePath, folderName);
+   }
+   
+4. 得到DiskLruCache对象后，就可以缓存文件了，比如我们要缓存网上的一个bitmap，具体步骤是：
+   通过DiskLruCache对象获取DiskLruCache.Editor对象，要执行缓存操作必须要用到这个editor对象：
+   1.通过DiskLruCache对象获取DiskLruCache.Editor对象，要执行缓存操作必须要用到这个editor对象：
+     DiskLruCache.Editor editor = mDiskLruCache.edit(cacheKey);
+   2.通过editor获取输出流，用来存储缓存：
+     OutputStream os = editor.newOutputStream(0);
+   3.从网上下载bitmap，将访问url得到的输入流写入到第2步得到的输出流里：
+	 private boolean downloadBitmap(String urlString, OutputStream os) {
+		try {
+			URL url = new URL(urlString);
+			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+			BufferedInputStream bis = new BufferedInputStream(conn.getInputStream(), 4 * 1024);
+			BufferedOutputStream bos = new BufferedOutputStream(os, 4 * 1024);
+			int len;
+			while((len = bis.read()) != -1){
+				bos.write(len);
+			}
+			bis.close();
+			bos.close();
+			conn.disconnect();
+			return true;
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return false;
+     }
+	 
+5. 接下来是读取缓存文件，具体步骤是：
+   1. 通过DiskLruCache对象获取DiskLruCache.Snapshot对象，要读取缓存必须要用到这个snapshot对象：
+      DiskLruCache.Snapshot snapshot = mDiskLruCache.get(cacheKey);
+   2. 通过snapshot获取输入流：
+      InputStream is = snapshot.getInputStream(0);   
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

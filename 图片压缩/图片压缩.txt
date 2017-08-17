@@ -16,6 +16,37 @@ public static void compressImageToFile(Bitmap bmp,File file) {
 }
 
 
+2. (1)将BitmapFactory.Options的inJustDecodeBounds参数设为true，设置完以后，BitmapFactory
+   在加载bitmap时就不会真正的去加载，只是去获取图片原始的宽高信息，这个操作是轻量级的。
+   
+   (2)通过BitmapFactory加载bitmap，这样图片原始的宽高信息就会存储在Options里面了。
+   
+   (3)根据图片原始的宽高、ImageView的宽高（你需要的宽高）来计算合适的inSampleSize
+   并赋给Options.inSampleSize。
+   (4)将BitmapFactory.Options的inJustDecodeBounds参数设回false，重新加载bitmap。
+   
+   
+   public static Bitmap decodeBitmap(Resources res, int resId, int reqWidth, int reqHeight){
+		BitmapFactory.Options options = new BitmapFactory.Options();
+		options.inJustDecodeBounds = true;
+		//这里必须采用传入options的方法
+		BitmapFactory.decodeResource(res, resId, options);
+
+		int height = options.outHeight;
+		int width = options.outWidth;
+		int sampleSize = 1;
+		while(height > reqHeight || width > reqWidth){
+			sampleSize *= 2;
+			height /= 2;
+			width /= 2;
+		}
+
+		options.inSampleSize = sampleSize;
+		options.inJustDecodeBounds = false;
+		return BitmapFactory.decodeResource(res, resId, options);
+   }
+
+
    
    
 3. 像素格式压缩

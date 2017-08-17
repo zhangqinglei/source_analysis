@@ -1,0 +1,87 @@
+1. Adapter的getView方法里面convertView没有使用setTag和getTag方式；
+2. 在getView方法里面ViewHolder初始化后的赋值或者是多个控件的显示状态和背景的显示没有优化好，
+   抑或是里面含有复杂的计算和耗时操作；
+3. 在getView方法里面 inflate的row 嵌套太深（布局过于复杂）或者是布局里面有大图片或者背景所致；
+4. Adapter多余或者不合理的notifySetDataChanged；
+5. listview 被多层嵌套，多次的onMessure导致卡顿，如果多层嵌套无法避免，建议把listview的高和宽设置为fill_parent. 
+   如果是代码继承的listview，那么也请你别忘记为你的继承类添加上LayoutPrams，注意高和宽都是fill_parent的;
+   
+   
+6.View在Draw的时候分成两个阶段：measure和layout，在measure阶段时主要就是为了计算两个参数：height和width。
+  而且要注意的是，这是个递归的过程，从顶向下，DecorView开始依次调用自己子元素的measure。
+  计算完成这两个参数后就开始layout，最后再是draw的调用。对于ListView，当然每一个Item都会被调用measure方法，
+  而在这个过程中getView和getCount会被调用，而且看用户的需求，可能会有很多次调用。而为什么会有很多组次调用呢？
+  问题就在于在layout中的决定ListView或者它的父元素的height和width属性的定义了。fill_parent会好一点，
+  计算方法会比较简单，只要跟父元素的大小相似就行，但是即使是fill_parent，也不能给View当饭吃，
+  还是要计算出来具体的dip，所以measure还是会被调用，只是可能比wrap_content的少一点。
+  至于自适应的它会一直考量它的宽和高，根据内容（也就是它的子Item）计算宽高。可能这个measure过程会反复执行，
+  如果父元素也是wrap_content，这个过程会更加漫长。
+  
+  所以，解决方法就是尽量避免自适应，除非是万不得已，固定大小或者填充的效果会比较好一些。
+  于是我们把listview与他父控件的所有高度与宽度都设置为fill_parent,果然getview调用正常了，注意是所有的高度和宽度！
+  
+  
+7. ListView和GridView列表滑动卡顿问题的优化方法汇总
+   (1)使用ViewHolder
+      在adapter的getView方法中对convertView setTag(viewHolder)，这个是大部分开发者都会去用的方案，
+      它的原理是避免重复通过inflate方法去渲染UI，只要set了tag，view就可以被重用
+   (2)getView方法中不要进行耗时操作
+      比如我们可能需要在getView中加载bitmap，而这是一个耗时的操作，需要用异步的方式去处理
+	 （最好是通过线程池，它可以避免由于频繁创建和销毁线程所带来的系统开销)
+   (3)图片的加载采用三级缓存的方式实现
+      加载网络图片时，应先尝试从内存缓存中获取，如果没有再从硬盘缓存（文件缓存）获取，
+	  还是没有才会从网络中下载。其实不只是图片，所有文件都可以通过三级缓存方式来加快加载速度避免重复从网络中下载。
+	  关于内存缓存和硬盘缓存的实现
+   (4)列表在滑动过程中不加载，停止时才加载
+      listView.setOnScrollListener(new AbsListView.OnScrollListener() {
+		@Override
+		public void onScrollStateChanged(AbsListView view, int scrollState) {
+			if(scrollState == AbsListView.OnScrollListener.SCROLL_STATE_IDLE){
+				mIsScroll = false;
+			}else{
+				mIsScroll = true;
+			}
+		}
+
+		@Override
+		public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+
+		}
+     });
+	(5)压缩图片大小
+	   使用BitmapFactory加载bitmap时，由于会按图片的原始像素分配内存，所以极易发生内存泄漏。
+	   可以通过BitmapFactory.Options来压缩图片，改变它的采样率
+	   
+	   
+	(6)开启硬件加速
+	   可以设置activity的属性：Android:hardwareAccelerated=”true”以开启硬件加速
+	   
+8. ListView嵌套RecycleView滑动卡顿问题的优化方案
+
+9. 解决：ScrollView中嵌套ListView，使得listview上下滑动卡顿现象
+   动态测量listview-Item的高度
+   public static void setListViewHeightBasedOnChildren(ListView listView) {  
+        ListAdapter listAdapter = listView.getAdapter();   
+        if (listAdapter == null) {  
+            // pre-condition  
+            return;  
+        }  
+  
+        int totalHeight = 0;  
+        for (int i = 0; i < listAdapter.getCount(); i++) {  
+            View listItem = listAdapter.getView(i, null, listView);  
+            listItem.measure(0, 0);  
+            totalHeight += listItem.getMeasuredHeight();  
+        }  
+  
+        ViewGroup.LayoutParams params = listView.getLayoutParams();  
+        params.height = totalHeight + (listView.getDividerHeight() * (listAdapter.getCount() - 1));  
+        listView.setLayoutParams(params);  
+    }  
+	
+	解决问题二：<listview上下滑动卡顿>
+	主要原因是因为在listview填充适配器的时候。在重写的类BaseAdapter方法getView();被无限的循环的调用；
+	这样消耗了大量的内存导致listview上下滑动的时候，出现了卡顿。原因就在于measure过程，ListView一般都会根据屏幕加载多个Item，
+	而且也会同时显示这些已经加载过的若干组Item，而这些Item的父元素都是这个ListView。
+   	 
+   

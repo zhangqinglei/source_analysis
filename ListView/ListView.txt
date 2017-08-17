@@ -1,5 +1,5 @@
 
-1. RecycleBin类
+1. RecycleBin类 是AbsListView的内部类
    private RecyclerListener mRecyclerListener;
    private int mFirstActivePosition;
    private View[] mActiveViews = new View[0];
@@ -18,14 +18,75 @@
    ->AbsListView.fillActiveViews recycleBin.fillActiveViews(childCount, firstPosition);  
    ->AbsListView.fillFromTop()从上到下填充ListView.mChidView
    ->AbsListView.fillDown() while调用makeAndAddView()将ListView填满。
-   ->AbsListView.makeAndAddView() 从Adapter中获取View   
+     从上到下开始计算每一个item的Top如果小于Bottom则加入，
+	 View child = makeAndAddView(pos, nextTop, true, mListPadding.left, selected);  
+   ->AbsListView.makeAndAddView() 从Adapter中获取View
+   
+4. View ListView.makeAndAddView(int position, int y, boolean flow, int childrenLeft, boolean selected) 
+   ->首先尝试从RecycleBin中获取View
+     if (!mDataChanged) {
+            // Try to use an existing view for this position.
+            final View activeView = mRecycler.getActiveView(position);
+            if (activeView != null) {
+                // Found it. We're reusing an existing child, so it just needs
+                // to be positioned like a scrap view.
+                setupChild(activeView, position, y, flow, childrenLeft, selected, true);
+                return activeView;
+            }
+        }
+   ->否则，用obtainView获取View final View child = obtainView(position, mIsScrap);
+   ->setupChild(child, position, y, flow, childrenLeft, selected, mIsScrap[0]);
+   
+5. ListView.setupChild()
+   ->核心是测量并布局子View
+     final int childRight = childrenLeft + w;
+     final int childBottom = childTop + h;
+     child.layout(childrenLeft, childTop, childRight, childBottom);   
+	 
    
 4. 第二次onLayout()
    ->将detachAllViewsFromParent将子View全删除
    ->AbsListView.fillFromTop()从上到下填充ListView.mChidView
    ->AbsListView.fillDown() while调用makeAndAddView()将ListView填满。
    ->AbsListView.makeAndAddView() 从删除的View的获取。
+   
+   
+   
+5.  ListView滑动
+    ListView.onTouchEvent(MotionEvent ev)   
+	->trackMotionScroll(int deltaY, int incrementalDeltaY)
+	->(1)deltaY表示从手指按下时的位置到当前手指位置的距离，incrementalDeltaY则表示据上
+	     次触发event事件手指在Y方向上位置的改变量，那么其实我们就可以通过incrementalDeltaY
+	     的正负值情况来判断用户是向上还是向下滑动的了
+	  
+	  (2)当ListView向下滑动的时候，就会进入一个for循环当中，从上往下依次获取子View，
+	     如果该子View的bottom值已经小于top值了，就说明这个子View已经移出屏幕了，
+	     所以会调用RecycleBin的addScrapView()方法将这个View加入到废弃缓存当中，
+	     并将count计数器加1，计数器用于记录有多少个子View被移出了屏幕
+	  (3)那么如果是ListView向上滑动的话，其实过程是基本相同的,从下往上依次获取子View，
+	     然后判断该子View的top值是不是大于bottom值了，如果大于的话说明子View已经移出了屏幕，
+		 同样把它加入到废弃缓存中，并将计数器加1
+	  (4)会根据当前计数器的值来进行一个detach操作，它的作用就是把所有移出屏幕的子View全部detach掉
+	     
 
 5. 滑动加载View
    会计算View 位置，将子View添加到scrapView中。
+   
+6. fillActiveViews() 这个方法接收两个参数，第一个参数表示要存储的view的数量，
+   第二个参数表示ListView中第一个可见元素的position值。RecycleBin当中使用mActiveViews这个数组来存储View，
+   调用这个方法后就会根据传入的参数来将ListView中的指定元素存储到mActiveViews数组当中。
+   
+7. getActiveView() 这个方法和fillActiveViews()是对应的，用于从mActiveViews数组当中获取数据。
+   该方法接收一个position参数，表示元素在ListView当中的位置，方法内部会自动将position值转
+   换成mActiveViews数组对应的下标值。需要注意的是，mActiveViews当中所存储的View，
+   一旦被获取了之后就会从mActiveViews当中移除，下次获取同样位置的View将会返回null，
+   也就是说mActiveViews不能被重复利用。
+8. addScrapView() 用于将一个废弃的View进行缓存，该方法接收一个View参数，当有某个View确定要废弃
+   掉的时候(比如滚动出了屏幕)，就应该调用这个方法来对View进行缓存，RecycleBin当中使用
+   mScrapViews和mCurrentScrap这两个List来存储废弃View。
       
+9. getScrapView 用于从废弃缓存中取出一个View，这些废弃缓存中的View是没有顺序可言的，因此getScrapView()
+   方法中的算法也非常简单，就是直接从mCurrentScrap当中获取尾部的一个scrap view进行返回。
+   
+   
+10. listview 上使用 addHeaderView 在第一栏添加 viewpager 当做header 

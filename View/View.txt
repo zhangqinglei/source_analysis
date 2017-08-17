@@ -1,3 +1,63 @@
 
 
 1. getRawX()和getRawY()获得的是相对屏幕的位置，getX()和getY()获得的永远是相对view的触摸位置坐标（这两个值不会超过view的长度和宽度）。
+
+2. wrap_parent -> MeasureSpec.AT_MOST
+   match_parent -> MeasureSpec.EXACTLY
+   具体值 -> MeasureSpec.EXACTLY
+   
+3. 1.EXACTLY(精准的)
+　　当您设置View的layout_height属性或layout_width属性为确定的值或者为match_parent（填充父容器）时候，
+    系统就将View测量模式设置为EXACTLY模式。
+   2.AT_MOST(最大值)
+　　即布局为最大值模式，那么什么时候系统会将View调整为AT_MOST模式了，即当您设置View的layout_height
+    属性或layout_width属性为wrap_content（包裹内容）时候。
+   3.UNSPECIFIED(未确定)
+　　即没有确定，没有指定大小测量模式，view即“心有多大，舞台就有多大"。这个方法，一般在自定义控件中才能用到。 
+
+4. setMeasuredDimension(measureWidth(widthMeasureSpec), measureWidth(heightMeasureSpec));
+
+5. View.layout(int l, int t, int r, int b)
+   ->View.setFrame(int left, int top, int right, int bottom)
+   ->onLayout(changed, l, t, r, b);
+   
+   
+6. View.setFrame(int left, int top, int right, int bottom)
+   ->计算当前视图上一次的宽度oldWidth和oldHeight，以便接下来可以检查当前视图的大小是否发生了变化。
+     调用invalidate()
+   ->当前视图距离父视图的边距一旦设置好之后，它就是一个具有边界的视图了，因此，
+     View类的成员函数setFrame接着还会将成员变量mPrivateFlags的HAS_BOUNDS设置为1。
+   ->当前视图是否是可见的, 调用另外一个成员函数invalidate来成功地执行一次UI绘制操作
+7. View.invalidate()
+   ->invalidateInternal(0, 0, mRight - mLeft, mBottom - mTop, invalidateCache, true);
+  
+8. View.nvalidateInternal(int l, int t, int r, int b, boolean invalidateCache, boolean fullInvalidate)
+   ->获取AttachInfo 和父View 
+     final AttachInfo ai = mAttachInfo;
+     final ViewParent p = mParent;
+  -> mParent.invalidateChild()
+  
+9. ViewGroup.invalidateChild(View child, Rect r)
+
+10. View.post(Runnable r)
+   ->return attachInfo.mHandler.post(action);
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+  
+  
+   
+   

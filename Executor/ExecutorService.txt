@@ -23,7 +23,7 @@
   (1).  Executor是一个线程池工厂类， 提供封装线程池的方法
         ->public static ExecutorService newCachedThreadPool()
 	      return new ThreadPoolExecutor(0, Integer.MAX_VALUE,60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
-	      创建大小不受限制的线程池
+	      创建大小不受限制的线程池，Integer.MAX_VALUE
 	
 	    ->public static ExecutorService newFixedThreadPool(int nThreads)
           return new ThreadPoolExecutor(nThreads, nThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());	
@@ -35,7 +35,7 @@
 	  
 	    ->public static ScheduledExecutorService newScheduledThreadPool(int corePoolSize)
           return new ScheduledThreadPoolExecutor(corePoolSize);
-          返回ScheduledThreadPoolExecutor， 	  
+          返回ScheduledThreadPoolExecutor，   
  
 
 4. ScheduledThreadPoolExecutor类
@@ -78,6 +78,10 @@
    Future<V> take() throws InterruptedException;
    Future<V> poll();
    Future<V> poll(long timeout, TimeUnit unit) throws InterruptedException;
+   
+10. Callable与Runnable的差异
+    Callable的call()方法可以有返回值， Runnable的run()方法没有
+	Callable的call()方法可以抛出异常， Runnable的run()方法不能抛出异常。
 
    
    

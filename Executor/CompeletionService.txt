@@ -1,0 +1,16 @@
+
+
+1. ExecutorCompletionService类
+   ExecutorCompletionService继承CompeletionService
+   ExecutorCompletionService<V> implements CompletionService<V>
+   private final Executor executor;
+   private final AbstractExecutorService aes;
+   private final BlockingQueue<Future<V>> completionQueue;
+   构造函数
+   this.executor = executor;
+   this.completionQueue = new LinkedBlockingQueue<Future<V>>();
+   
+2. ExecutorCompletionService.submit(Callable<V> task)
+   ->将Callable封装到FutureTask中，RunnableFuture<V> f = newTaskFor(task);
+   ->交给线程池执行executor.execute(new QueueingFuture(f));
+     executor是线程池
