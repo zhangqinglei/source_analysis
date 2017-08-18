@@ -1,0 +1,37 @@
+
+1. 通过分析系统资源加载了解到，系统是通过ContextImpl中的getAssets与getResources加载资源的
+2. 获取插件中的资源
+   //第一个参数：是dex压缩文件的路径
+   //第二个参数：是dex解压缩后存放的目录
+   //第三个参数：是C/C++依赖的本地库文件目录,可以为null
+   //第四个参数：是上一级的类加载器
+   DexClassLoader  classLoader=new DexClassLoader(pApkFilePath,file.getAbsolutePath(),null,getClassLoader());
+   
+   try {
+            final Class<?> loadClazz = classLoader.loadClass(pApkPacketName + ".R$drawable");
+          //插件中皮肤的名称是skin_one
+            final Field skinOneField = loadClazz.getDeclaredField("skin_one");
+            skinOneField.setAccessible(true);
+            //反射获取skin_one的resousreId
+            final int resousreId = (int) skinOneField.get(R.id.class);
+            //可以加载插件资源的Resources
+            final Resources resources = createResources(pApkFilePath);
+            if (resources != null) {
+                final Drawable drawable = resources.getDrawable(resousreId);
+                mSkinTv.setBackground(drawable);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+		
+3. DexClassLoader可以加载jar/apk/dex，可以从SD卡中加载未安装的apk；
+   PathClassLoader只能加载系统中已经安装过的apk；
+   
+4. Activity的工作主要是通过ContextImpl来完成的， Activity中有一个叫mBase的成员变量，它的类型就是ContextImpl。
+   注意到Context中有如下两个抽象方法，看起来是和资源有关 的，实际上Context就是通过它们来获取资源的。
+   这两个抽象方法的真正实现在ContextImpl中，也就是说，只要实现这两个方法，就可以解决资源问题了
+   
+ 
+
+   

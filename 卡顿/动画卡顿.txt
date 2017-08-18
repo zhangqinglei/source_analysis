@@ -1,0 +1,52 @@
+1. Android系统每隔16ms就重新绘制一次Activity，一秒60帧
+   超过60fps就没有必要了。如果我们的应用没有在16ms内完成屏幕刷新的全部逻辑操作，就会发生卡顿
+   
+2. 渲染原理
+   上面说了CPU和GPU的处理时间因为各种原因都大于一个VSync的间隔（16.6ms），导致了卡顿。
+   渲染操作通常依赖于两个核心组件：CPU与GPU。CPU负责包括Measure，Layout，Record，Execute的计算操作，
+   GPU 负责Rasterization(栅格化)操作。何为栅格化
+   16毫秒的时间主要被两件事情所占用：
+      第一件：将UI对象转换为一系列多边形和纹理；
+	  第二件：CPU传递处理数据到GPU
+	  
+3. 在CPU方面，最常见的性能问题是不必要的布局和失效，这些内容必须在视图层次结构中进行测量、
+   清除并重新创建，引发这种问题通常有两个原因：
+      一是重建显示列表的次数太多
+      二是花费太多时间作废视图层次并进行不必要的重绘
+   
+   在GPU方面，最常见的问题是我们所说的过度绘制（overdraw），通常是在像素着色过程中，
+   通过其他工具进行后期着色时浪费了GPU处理时间
+   
+   CPU产生的问题：不必要的布局和失效
+   GPU产生的问题：过度绘制（overdraw）
+   
+4. 过渡绘制处理方案：
+   Overdraw 的处理方案一：去掉window的默认背景
+   当我们使用了Android自带的一些主题时，window会被默认添加一个纯色的背景，这个背景是被DecorView持有的。
+   当我们的自定义布局时又添加了一张背景图或者设置背景色，那么DecorView的background此时对我们来说是无用的，
+   但是它会产生一次Overdraw，带来绘制性能损耗
+   去掉window的背景可以在onCreate()中setContentView()之后调用getWindow().setBackgroundDrawable(null);
+   或者在theme中添加android:windowbackground="null"；
+   
+   Overdraw 的处理方案二：去掉其他不必要的背景
+   有时候为了方便会先给Layout设置一个整体的背景，再给子View设置背景，这里也会造成重叠，如果子View宽度
+   mach_parent，可以看到完全覆盖了Layout的一部分，这里就可以通过分别设置背景来减少重绘。
+   
+   Overdraw 的处理方案四：ViewStub
+   ViewStub称之为“延迟化加载”，在教多数情况下，程序无需显示ViewStub所指向的布局文件，只有在特定的
+   某些较少条件下，此时ViewStub所指向的布局文件才需要被inflate，且此布局文件直接将当前ViewStub替换掉，
+   具体是通过viewStub.infalte()或viewStub.setVisibility(View.VISIBLE)来完成；
+   
+   Overdraw 的处理方案五：Merge标签
+   Merge标签可以干掉一个view层级。Merge的作用很明显
+   
+5. 布局常见问题与优化建议
+   没有用的父布局时指没有背景绘制或者没有大小限制的父布局，这样的布局不会对UI效果产生任何影响。
+   我们可以把没有用的父布局，通过<merge/>标签合并来减少UI的层次
+
+
+
+   
+   
+   
+
