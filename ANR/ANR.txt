@@ -8,3 +8,9 @@ C Ç°Ì¨BroadcastÈç¹ûÔÚ10ÃëÖ®ÄÚÎ´½áÊø¾Í»á³öÏÖANR£¬ºóÌ¨BroadcastÈç¹û60ÃëÖ®ÄÚÎ´½áÊø¾
    5.1 »ù±¾ÐÅÏ¢£¬°üÀ¨½ø³ÌºÅÃû£¬½ø³ÌºÅ£¬°üÃû£¬ÏµÍ³buildºÅ£¬ANRÀàÐÍµÈµÈ
    5.2 CPUÊ¹ÓÃÐÅÏ¢£¬°üÀ¨»îÔ¾½ø³ÌµÄCPUÆ½¾ùÕ¼ÓÃÂÊ£¬IOÇé¿öµÈ
    5.3 Ïß³Ì¶ÑÕ»ÐÅÏ¢£¬ËùÊô½ø³Ì°üÀ¨·¢ÉúANRµÄ½ø³Ì£¬Æä¸¸½ø³Ì£¬×î½üÓÐ»î¶¯µÄ3¸ö½ø³ÌµÈ
+   
+4. ActivityµÄËùÓÐÉúÃüÖÜÆÚ»Øµ÷¶¼ÊÇÖ´ÐÐÔÚÖ÷Ïß³ÌÖÐ¡£
+   ServiceÄ¬ÈÏÊÇÖ´ÐÐÔÚÖ÷Ïß³ÌµÄ¡£
+   BroadcastReceiver µÄ onReceive»Øµ÷ÊÇÖ´ÐÐÔÚÖ÷Ïß³ÌµÄ¡£
+   Ã»ÓÐÊ¹ÓÃ×ÓÏß³ÌµÄlooperµÄHandleµÄhandleMessage¡¢post(Runnable)ÊÇÖ´ÐÐÔÚÖ÷Ïß³ÌµÄ¡£
+   AsyncTaskµÄ»Øµ÷ÖÐ³ýÁËdoInBackground£¬ÆäËü¶¼ÊÇÖ´ÐÐÔÚÖ÷Ïß³Ì¡£

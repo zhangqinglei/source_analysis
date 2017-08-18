@@ -43,6 +43,26 @@
 5. 布局常见问题与优化建议
    没有用的父布局时指没有背景绘制或者没有大小限制的父布局，这样的布局不会对UI效果产生任何影响。
    我们可以把没有用的父布局，通过<merge/>标签合并来减少UI的层次
+   
+6. 动画卡顿优化
+   如果不禁止绘图缓存，那么每次绘制子View时都要更新缓存并且将缓存画到画布中。这无疑是多了一步，
+   画一个bitmap，animation需要不停的画所以也就多了很多操作，但是这个缓存不是说是对绘制视图的优化嘛，
+   这个秘密就在View的invalidate中，当子View需要 invalidate时，事实上也是交给父布局去分发的。
+   
+7. ViewGroup的方法，setPersistentDrawingCache(int drawingCacheToKeep)：
+   public void setPersistentDrawingCache(int drawingCacheToKeep) {
+        mPersistentDrawingCache = drawingCacheToKeep & PERSISTENT_ALL_CACHES;
+   }   
+   
+   这个方法的作用，便是控制绘图缓存在被创建之后，什么时候使用。
+   
+   方法的可用参数，系统提供了四个值：
+   1）PERSISTENT_ANIMATION_CACHE：动画前不可用，动画结束时可用，并保存此时的Cache。
+   2）PERSISTENT_SCROLLING_CACHE：滚动式不可用，滚动结束时可用，并保存此时的Cache。
+   3）PERSISTENT_ALL_CACHES：不管在什么时候，都是用缓存。
+   4）PERSISTENT_NO_CACHE：不适用缓存。
+   
+   
 
 
 

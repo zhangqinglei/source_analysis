@@ -4,3 +4,18 @@ http://www.jianshu.com/p/388c693c1b58
 
 追踪内存分配http://www.jianshu.com/p/d9e426c10581
 客户端性能优化 http://blog.tingyun.com/web/article/detail/155#rd
+
+动画卡顿 http://www.w2bc.com/Article/13700
+
+内存优化 http://www.open-open.com/lib/view/open1443345966107.html
+
+增量更新 http://www.jianshu.com/p/2551a01916df
+
+合理管理内存 http://android.jobbole.com/81239/
+
+动画卡顿分析 http://blog.csdn.net/tyh123456789/article/details/39001777
+多帧动画延迟播放 http://www.cnblogs.com/jackieli/p/5563072.html
+
+瀑布流 http://blog.csdn.net/guolin_blog/article/details/10470797/
+       http://blog.csdn.net/guolin_blog/article/details/10470797/
+
