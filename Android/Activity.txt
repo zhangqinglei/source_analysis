@@ -108,7 +108,52 @@
       我们必须在尝试读取 Bundle 对象前检测它是否为null。如果它为null，系统则是创建一个新的Activity实例，
 	  而不是恢复之前被Destory的Activity。
    (3)也可以选择实现 onRestoreInstanceState() ，而不是在onCreate方法里面恢复数据。 onRestoreInstanceState()方法会在 onStart() 
-      方法之后执行. 系统仅仅会在存在需要恢复的状态信息时才会调用 onRestoreInstanceState() ，因此不需要检查 Bundle 是否为null。	  
+      方法之后执行. 系统仅仅会在存在需要恢复的状态信息时才会调用 onRestoreInstanceState() ，因此不需要检查 Bundle 是否为null。	 
+
+9. 如何理解Activity，View，Window三者之间的关系？
+   Activity像一个工匠（控制单元），Window像窗户（承载模型），View像窗花（显示视图）LayoutInflater像剪刀，Xml配置像窗花图纸。
+   1：Activity构造的时候会初始化一个Window，准确的说是PhoneWindow。
+   2：这个PhoneWindow有一个“ViewRoot”，这个“ViewRoot”是一个View或者说ViewGroup，是最初始的根视图。
+   3：“ViewRoot”通过addView方法来一个个的添加View。比如TextView，Button等
+   4：这些View的事件监听，是由WindowManagerService来接受消息，并且回调Activity函数。比如onClickListener，onKeyDown等。   
+   
+  
+  
+10. Activity的onNewInstent()方法会执行
+    当此Activity的实例已经存在，并且此时的启动模式为SingleTask和SingleInstance，
+	另外当这个实例位于栈顶且启动模式为SingleTop时也会触发onNewInstent()
+	
+11. Fragment不能独立存在，它必须嵌入到activity中，而且Fragment的生命周期直接受所在的activity的影响。
+    
+12. Service与其它组件之间的通信实现方式有哪些
+    binder
+    broadcast
+    其他参见线程和进程的通信方式
+    
+13. 如何将一个Activity设置成窗口的样式。
+    android :theme="@android:style/Theme.Dialog"
+   另外android:theme="@android:style/Theme.Translucent" 是设置透明
+   
+14. 如何退出Activity
+    对于单一Activity的应用来说，退出很简单，直接finish()即可。当然，也可以用killProcess()和System.exit()这样的方法
+	
+	
+15. View, surfaceView, GLSurfaceView有什么区别。
+    view是最基础的，必须在UI主线程内更新画面，速度较慢。
+    SurfaceView 是view的子类，类似使用双缓机制，在新的线程中更新画面所以刷新界面速度比view快
+	SurfaceView在 surfaceCreated函数里开始创建线程调用绘制。 surfaceDestroyed()方法里销毁绘制。
+	获取SurfaceViewHolder的Canvas绘制。
+	   Canvas canvas = holder.lockCanvas();
+        try {
+            drawCanvas(canvas);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            holder.unlockCanvasAndPost(canvas);
+        }
+	绘制完释放Canvas holder.unlockCanvasAndPost(canvas);
+    GLSurfaceView 是SurfaceView的子类，opengl 专用的
+
          
 	  
 	  

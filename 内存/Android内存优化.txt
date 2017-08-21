@@ -1,4 +1,4 @@
-1. nTrimMemory()方法中的TRIM_MEMORY_UI_HIDDEN回调只有当我们程序中的所有UI组件全部不可见的时候才会触发，
+1. TrimMemory()方法中的TRIM_MEMORY_UI_HIDDEN回调只有当我们程序中的所有UI组件全部不可见的时候才会触发，
    这和onStop()方法还是有很大区别的，因为onStop()方法只是当一个Activity完全不可见的时候就会调用
    @Override
    public void onTrimMemory(int level) {
@@ -67,4 +67,25 @@
 11. 避免在内部调用Getters/Setters方法
     因为字段搜寻要比方法调用效率高得多，我们直接访问某个字段可能要比通过getters
 	方法来去访问这个字段快3到7倍。
+	
+12. OnLowMemory
+      OnLowMemory是Android提供的API，在系统内存不足，所有后台程序（优先级为background的进程，
+	  不是指后台运行的进程）都被杀死时，系统会调用OnLowMemory。系统提供的回调：
+	  Application/Activity/Fragementice/Service/ContentProvider
+	  
+13. OnTrimMemory是android 4.0之后提供的API，系统会根据不同的内存状态来回调。系统提供的回调有：
+    Application/Activity/Fragement/Service/ContentProvider
+	
+	OnTrimMemory的参数是一个int数值，代表不同的内存状态：
+	TRIM_MEMORY_COMPLETE：内存不足，并且该进程在后台进程列表最后一个，马上就要被清理
+    TRIM_MEMORY_MODERATE：内存不足，并且该进程在后台进程列表的中部。
+    TRIM_MEMORY_BACKGROUND：内存不足，并且该进程是后台进程。
+    TRIM_MEMORY_UI_HIDDEN：内存不足，并且该进程的UI已经不可见了。
+	
+14. OnLowMemory和OnTrimMemory的比较
+   OnLowMemory被回调时，已经没有后台进程；而onTrimMemory被回调时，还有后台进程。
+   OnLowMemory是在最后一个后台进程被杀时调用，一般情况是low memory killer 杀进程后触发；
+   而OnTrimMemory的触发更频繁，每次计算进程优先级时，只要满足条件，都会触发。
+   通过一键清理后，OnLowMemory不会被触发，而OnTrimMemory会被触发一次。
+	
    

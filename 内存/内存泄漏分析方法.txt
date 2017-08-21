@@ -1,0 +1,15 @@
+
+1 在Androd Monitor
+  ->中打开Monitor->点击dump heap按钮 在AndroidStudio生成快照
+  ->选取要分析的类->在Analyzer中点击执行按钮显示泄漏的内存
+  ->点解泄漏的内存分析其引用。
+  
+  
+2. MAT 
+   (1)将导出的hprof文件通过 hprof-conv转换
+   (2)输入格式  hprof-conv input.hprof output.hprof
+   (3)在Eclipse中打开output.hprof文件。
+   (4)判断泄露 : Activity或View大于1个对象, 都有可能发生内存泄露.
+      打开相应的类分析其引用。
+      
+   

@@ -98,8 +98,10 @@
    
    
    ThreadPoolExecutor.execute调用addWorker()方法将runnable封装到Worker类中， Worker类创建线程Thread,
-   由addWorker()方法调用执行t.start();
-   Worker.Thread.run();直接使用task(Runable)或者getTask()获取Runnable。执行task.run()方法。
+   将Work变量添加到works中 HashSet<Worker> workers = new HashSet<>(
+   添加的过程有重入锁，添加成功执行Work中的线程Thread t = w.thread;
+   Worker.Thread.run();实际是回调Work中的run()方法。 从线程队列workQueue中取出Runnable对象执行。
+   直接使用task(Runable)或者getTask()获取Runnable。执行task.run()方法。
    
    
    

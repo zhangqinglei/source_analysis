@@ -18,6 +18,11 @@
       而layout的背景色不做处理；
    (3)如果有一个layout中嵌套多个其他view，则保持当前layout的背景色不变，将嵌套的其他view的背景色全部改成透明色
      （如果view的背景色和被包含的layout的背景色一致）；
+	 
+      去掉window的背景可以在onCreate()中setContentView()之后调用
+	  getWindow().setBackgroundDrawable(null);
+	  或者在theme中添加
+	  android:windowbackground="null"；
 
 4.可以使用LayoutInspector检测View的层级 还有HieracherView
 
@@ -34,9 +39,29 @@
 
 8. <ViewStub />标签最大的优点是当你需要时才会加载，使用他并不会影响UI初始化时的性能。各种不常用的布局想进度条、
    显示错误消息等可以使用<ViewStub />标签，以减少内存使用量，加快渲染速度。<ViewStub />是一个不可见的，
-   大小为0的View。<ViewStub />标签使用如下：	
+   大小为0的View。<ViewStub />标签使用如下：
+9. 有两种情况下我们可以使用Merge标签来做容器控件。
+   第一种子视图不需要指定任何针对父视图的布局属性，就是说父容器仅仅是个容器，子视图只需要直接添加
+   到父视图上用于显示就行   
+
+10. 第八招：慎用Alpha
+   假如对一个View做Alpha转化，需要先将View绘制出来，然后做Alpha转化，最后将转换后的效果绘制在界面上。
+   通俗点说，做Alpha转化就需要对当前View绘制两遍，可想而知，绘制效率会大打折扣，耗时会翻倍，所以Alpha还是慎用。
+   view.setLayerType(LAYER_TYPE_HARDWARE);
+   doSmoeThing();
+   view.setLayerType(LAYER_TYPE_NONE);
+   
+   通过setLayerType方式可以将当前界面缓存在GPU中，这样不需要每次绘制原始界面，但是GPU内存是相当宝贵的，
+   所以用完要马上释放掉
   
-  	 
+  
+没有颜色： 意味着没有overdraw。像素只画了一次。
+蓝色： 意味着overdraw 1倍。像素绘制了两次。大片的蓝色还是可以接受的（若整个窗口是蓝色的，可以摆脱一层）。
+绿色： 意味着overdraw 2倍。像素绘制了三次。中等大小的绿色区域是可以接受的但你应该尝试优化、减少它们。
+浅红： 意味着overdraw 3倍。像素绘制了四次，小范围可以接受。
+暗红： 意味着overdraw 4倍。像素绘制了五次或者更多。这是错误的，要修复它们。
+
+
    
 		
 

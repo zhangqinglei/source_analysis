@@ -33,6 +33,7 @@ PhoneWindow
    ActivityThread mMainThread;
    Activity mParent;
    private WindowManager mWindowManager;
+   PhoneWindow°üº¬WindowManaer¡£
  
 5. Activity.attach()
    ->mWindow = new PhoneWindow(this, window);

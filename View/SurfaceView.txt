@@ -1,0 +1,19 @@
+
+1. View, surfaceView, GLSurfaceView有什么区别。
+    view是最基础的，必须在UI主线程内更新画面，速度较慢。
+    SurfaceView 是view的子类，类似使用双缓机制，在新的线程中更新画面所以刷新界面速度比view快
+	SurfaceView在 surfaceCreated函数里开始创建线程调用绘制。 surfaceDestroyed()方法里销毁绘制。
+	获取SurfaceViewHolder的Canvas绘制。
+	   Canvas canvas = holder.lockCanvas();
+        try {
+            drawCanvas(canvas);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            holder.unlockCanvasAndPost(canvas);
+        }
+	绘制完释放Canvas holder.unlockCanvasAndPost(canvas);
+    GLSurfaceView 是SurfaceView的子类，opengl 专用的
+	
+2. SurfaceView绘制优化 
+   在不断调用draw()方法来绘制，有时候也不用这么频繁。因此在子线程中，进行sleep操作
