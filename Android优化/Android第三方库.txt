@@ -1,0 +1,291 @@
+
+
+EventBus
+(1)EventBus注册是， 遍历Object中声明的onEvent方法，创建SubscriberMethod(method, threadMode, eventType)对象，同时把
+   SubscriberMethod对象保存到List<SubscriberMethod>中，以类名+方法名（MainActivity+onEvent）为key保存到List<SubscriberMethod>
+   到methodCache中。methodCache 是Map<String, List<SubscriberMethod>> 变量. SubscriberMethod中包含方法，参数类型和运行线程类型
+	
+(2)遍历这些  SubscriberMethod， 创建Subscription， 将Subscription 保存到subscriptions = new CopyOnWriteArrayList();中。
+   将subscriptions保存到subscriptionsByEventType。（根据参数类型保存Subscription队列,例如onEventMainThread里的UserInfo），
+   post方法调用时根据参数的类型找到subscriptions，遍历subscriptions中的Subscription获取SubscribeMethod回调注册的事件(onEventMainThread)
+   
+ 
+Volley
+1. Volley的思想是Volley创建RequestQueue对象，缓存Cache DiskBasedCache和网络访问BasicNetwork.
+   并将缓存Cache和网络访问BasicNetwork保存到RequestQueue中
+   BasicNetwork network1 = new BasicNetwork((HttpStack)stack);
+   RequestQueue queue1 = new RequestQueue(new DiskBasedCache(cacheDir), network1);
+2. RequestQueue.start()启动是会创建一个Cache分发线程和是个网络分发线程
+   this.mCacheDispatcher = new CacheDispatcher(this.mCacheQueue, this.mNetworkQueue, this.mCache, this.mDelivery);
+   NetworkDispatcher networkDispatcher = new NetworkDispatcher(this.mNetworkQueue, this.mNetwork, this.mCache, this.mDelivery);
+   启动缓存线程和网络请求线程
+   
+   
+3. 网络请求执行过程。
+   (1)首先缓存线程不断查询mCacheQueue队列，获取Request，从Reqeust获取Cachekey, 在缓存Cache中查找。
+      如果查找不到，或者请求超时，则将请求扔进mNetWorkQueue中，
+      如果查找到则直接返回结果。
+      Response response = e.parseNetworkResponse(new NetworkResponse(entry.data, entry.responseHeaders));
+	  
+   (2)网络请求线程不断查询mNetworkQueue,将请求交给 BasicNetWor执行
+      BasicNetWor.performRequest(Request<?> request);
+   ->获取url和请求Header
+   ->创建HttpURLConnection
+     设置链接超时时间，读取超时时间，是否缓存等.
+	 将Header信息设置到connection中，connection.addRequestProperty(headerName, map.get(headerName));
+	 设置请求方法 GET,Post,Delete等,connection.setRequestMethod("POST");
+	 返回响应HttpResponse
+   ->Request解析结果，Response response = request.parseNetworkResponse(e);
+     如果需要保存的话将结果保存到Cache中，
+	 同时调用ExecutorDelivery.postResponse(Request<?> request, Response<?> response)
+	 执行Request回调，ExecutorDelivery创建ResponseDeliveryRunnable对象交给主线程Handler执行。
+	 this.mResponsePoster = new Executor() {
+            public void execute(Runnable command) {
+                handler.post(command);
+            }
+     };
+	 ResponseDeliveryRunnable回调Request.deliverResponse(this.mResponse.result)方法，回调到Lister对象
+	 onResponse方法。
+	 
+OKHttp
+1. Request.Build的创建
+   Request.Builder builder = new Request.Builder().url(url);
+   Request.Builder设置请求头部信息 builder.addHeader(entry.getKey(), entry.getValue());
+   创建Request Request request = builder.build();
+   
+   默认方法是GET
+   
+2. 创建OKHttpClient OkHttpClient client = new OkHttpClient.Builder().build();
+   OkHttpClient.Builder()是OKHttpClient内部类， 创建的时候会创建会创建协议分发器，Cache等。
+   Cache是自定义的序列化类
+   dispatcher = new Dispatcher();
+   protocols = DEFAULT_PROTOCOLS;
+   connectionSpecs = DEFAULT_CONNECTION_SPECS;
+   proxySelector = ProxySelector.getDefault();
+   
+   OkHttpClient.Builder().build方法，创建OKHttpClient对象，将Builder封装到OKHttpClient中。
+   OKHttpCliet在构造函数中会获取Builder创建的变量
+  
+3. 获取Call Call call = OKHttpClient.newCall(request);
+   实际返回的Call是new RealCall(this, request);
+   RealCall封装了OKHttpClient和Reqeust
+   执行请求 call.enqueue(new okhttp3.Callback
+   ->创建AsyncCall对象，这是一个Runnable 对象new AsyncCall(responseCallback, forWebSocket)
+   ->RealCall调用OKHttpClient中的Dispatcher将AsyncCall对象添加到线程池去执行
+   ->executorService().execute(call);
+4. 线程处理请求AsyncCall.execute()
+   ->获取解析结果回调
+     Response response = getResponseWithInterceptorChain(forWebSocket);
+     responseCallback.onResponse(RealCall.this, response);
+	 
+	 
+执行框架是，创建Reqeust和 OKHttpClient,Request封装各种网络请求数据url， header等
+从OKHttpClinent中获取ReallCall, RealCall调用OKHttpClient中的Dispatcher将AsyncCall对象添加到线程
+处理请求
+
+
+13. OKHttp 整体架构
+    (1)创建OKHttpClient, 初始化dispatcher，协议， socketFactory等
+	(2)创建Request, 初始化url,method,headers,body等
+	(3)创建 Call 实际返回RealCall();RealCall封住HttpClient和Request
+    (4)RealCall.enqueue()进入实际请求和响应
+    (5)将Callback封装到AsyncCall中，RealCall.enqueue()调用
+	   OKHttpClient.dispatcher.enqueue(new AsyncCall(responseCallback, forWebSocket))处理AsyncCall对象
+	   如果runningAsyncCalls小于最大请求数量将AsyncCall对象塞进线程池
+	(6)AsyncCall线程调用到execute()函数
+	(7)execute 调用getResponseWithInterceptorChain(forWebSocket);处理请求，返回响应Response
+	(8)responseCallback响应回调结果
+
+	   
+	RetryAndFollowUpInterceptor
+    ->在网络请求失败后进行重试
+	  当服务器返回当前请求需要进行重定向时直接发起新的请求，并在条件允许情况下复用当前连接
+   
+    BridgeInterceptor
+	->设置内容长度，内容编码
+	  设置gzip压缩，并在接收到内容后进行解压。省去了应用层处理数据解压的麻烦
+	  添加cookie
+      设置其他报头，如User-Agent,Host,Keep-alive等。其中Keep-Alive是实现多路复用的必要步骤
+	
+	CacheInterceptor的职责很明确，就是负责Cache的管理
+	->当网络请求有符合要求的Cache时直接返回Cache
+      当服务器返回内容有改变时更新当前cache
+      如果当前cache失效，删除
+   
+    ConnectInterceptor的intercep
+	->即为当前请求找到合适的连接，可能复用已有连接也可能是重新创建的连接，返回的连接由连接池负责决定
+    
+	CallServerInterceptor负责向服务器发起真正的访问请求，并在接收到服务器返回后读取响应返回	 
+	 
+
+Retrofit 
+  创建执行
+  BaseInfoService service = retrofit.create(BaseInfoService.class);
+  Call<ResponseBody> call = service.getBaseInfo("014577281f60460db7d3f4fc94f5ae4e");
+  call.enqueue(callback);
+ 
+	 
+	 
+Retrofit类
+  private final Map<Method, ServiceMethod> serviceMethodCache = new LinkedHashMap<>(); 
+  private final okhttp3.Call.Factory callFactory;   //callFactory = new OkHttpClient();
+  private final HttpUrl baseUrl;                    //请求
+  private final List<Converter.Factory> converterFactories; 
+  private final List<CallAdapter.Factory> adapterFactories; //ExecutorCallAdapterFactory
+  private final Executor callbackExecutor; //Android平台 MainThreadExecutor implements Executor 
+  
+  
+
+MainThreadExecutor类
+  private final Handler handler = new Handler(Looper.getMainLooper());
+  
+
+1. retrofit采用代理+注解方案
+2. Retrofit.Builder() 
+   (1) 创建平台Platform PLATFORM = findPlatform() 创建平台Android Android类继承Platform类
+   (2) List<Converter.Factory> converterFactories = new ArrayList<>(); 
+       converterFactories添加BuiltInConverters； 
+	   converterFactories.add(new BuiltInConverters());
+3. baseUrl（）将url封装成HttpUrl, 保存到Build baseUrl变量中    
+
+4. Builder.build()
+   ->callFactory 是OkHttpClient变量 callFactory = new OkHttpClient();
+   ->callbackExecutor是Executor变量 callbackExecutor = new MainThreadExecutor();在Android平台中创建.
+   ->创建ExecutorCallAdapterFactory， 将callbackExecutor保存到ExecutorCallAdapterFactory中。
+   ->adapterFactories添加ExecutorCallAdapterFactory。
+   返回Retrofit
+
+5. Retrofit.create()返回接口的代理，重写接口.
+	
+   
+
+
+6. 由代理获取Call<ResponseBody>;
+   ->invoke()->loadServiceMethod(method);获取ServiceMethod. ServiceMethod serviceMethod = loadServiceMethod(method);
+   ->首先在serviceMethodCache中查找是否保存ServiceMethod结果。
+     如果没有创建result = new ServiceMethod.Builder(this, method).build();
+	 并保存到serviceMethodCache中。serviceMethodCache.put(method, result);
+   ->OkHttpCall okHttpCall = new OkHttpCall<>(serviceMethod, args);
+   ->serviceMethod.callAdapter.adapter(okHttpCall);
+   ->adapter() -> return new ExecutorCallbackCall<>(callbackExecutor, call); 将HttpCall变量保存到ExecutorCallbackCall中。
+	 
+	 
+	 
+
+7. 创建ServiceMethod.Builder()
+   ->Builder(Retrofit retrofit, Method method)
+     获取method annotation, 参数类型， 和参数注解
+	 
+	 public Builder(Retrofit retrofit, Method method) {
+      this.retrofit = retrofit;
+      this.method = method;
+      this.methodAnnotations = method.getAnnotations();
+      this.parameterTypes = method.getGenericParameterTypes();
+      this.parameterAnnotationsArray = method.getParameterAnnotations();
+    }
+  
+8.  ServiceMethod.Builder.build()
+    ->获取callAdpter callAdapter = createCallAdapter(); CallAdapter<?> callAdapter;转到9
+	->获取返回类型
+	->解析metho的注解获取方法(GET,POST,DELETE等);parseMethodAnnotation(annotation);
+	->parseHttpMethodAndPath()获取方法类型的参数头部等。保存到httpMethod，
+	->创建ServiceMethod并返回.
+	
+	
+	
+9. createCallAdapter()
+   ->获取method的发挥类型
+   ->获取method的注解
+   ->调用retrofit.callAdapter()->nextCallAdapter()
+   ->从adapterFactories中找到ExecutorCallAdapterFactory变量调用get()方法。
+     CallAdapter<?> adapter = adapterFactories.get(i)；
+	 
+	 实际是由ExecutorCallAdapterFactory.get()创建CallAdapter对象。
+	 return new CallAdapter<Call<?>>() {
+      @Override public Type responseType() {
+        return responseType;
+      }
+
+      @Override public <R> Call<R> adapt(Call<R> call) {
+        return new ExecutorCallbackCall<>(callbackExecutor, call);
+      }
+    };
+	CallAdapter对象返回实际Call ExecutorCallbackCall
+   
+   
+   
+   
+   
+10. HttpCall.enqueue()
+    ->创建okhttp3.Call rawCall call = rawCall = createRawCall();
+    ->	createRawCall() okhttp3.Call call = serviceMethod.callFactory.newCall(request);
+	callFactory是HttpClient.
+	-> rawCall.enqueue(); 进入OKHttp调用。
+	
+	
+	原理创建CallAdapter(ExeutorCallAdapter)， 返回类型， 参数类型等保存的Service中。
+	CallAdapter.adapter(Call call); 创建new ExecutorCallbackCall<>(callbackExecutor, call)；
+	Call<ResponseBody>是ExecutorCallbackCall。
+	执行Call.enqueue(Callback);
+	
+Retrofit的思想,重写InvocationHandelr类， 通过Hook指向修改的接口 创建ServiceMethod, ServiceMethod通过解析注解保存相关方法
+参数等GET，url， Header参数等，保存到ServiceMethod中，同事也创建适配工厂ExecutorCallAdapterFactory
+适配工厂, 适配工厂ExecutorCallAdapterFactory.get()方法返回重写的CallAdapter(). CallAdapter.adapt()
+方法返回Call子类ExecutorCallbackCall， 通过ExecutorCallbackCall，执行请求。
+
+Picasso
+如果url或者资源ID获取失败首先从ImageVeiw holder中获取，没有的话从缓存中获取，如果缓存中没有则封装ImageViewAction，
+   发出请求，请求首先从本地缓存中查询，没有的话网络请求。
+   RequestCreator封装ImageViewAction，调用Picasso.enqueueAndSubmit(action1);
+   Picasso调用dispatcher.dispatchSubmit(action)发送action . 实际通过Handler调用。
+   Dispatcher创建BitmapHunter线程类塞到线程池中。执行请求。
+   
+   (1)Picasso将ImageView封装成ImageViewAction action
+   (2)Picasso将 action交给Dispstcher处理
+   (3)Dispatcher 创建BitmapHunter 变量hunter交个线程池处理，BitmapHunter复制数据的下载与显示  
+   (4)BitmapHunter首先从缓存中查找，如果没有这创建网络请求
+   (5)NetworkRequestHandler 调用UrlConnectionDownloader现在，返回Response.
+   (6)得到缓存Dispatcher通过handler处理结果performComplete， 如果需要缓存的话则将结果缓存， hunterMap移除BitmapHunter
+   (7)将hunter添加到Dipstather 的batch中。发到主线程. 主线程Handler在Picasso类中定义
+   (8)从hunter中获取ImageViewAction action 和bitmap;
+   (9)action给图片赋值,调用ImgeViewAction给的ImageView赋值。
+   
+   
+   
+   Picasso内存策略 1.内存 2.磁盘 3.网络
+   
+   加载的时候如果检测到有图片Builder.setPlaceholder. 直接设置ImageView drawable  
+   (ImageView)target.setImageDrawable(placeholderDrawable);
+   
+DynamicLoadApk
+   
+DynamicLoadApk的工作原理， 宿主启动时到插件文件夹去加载插件，生成差价DLPluginPackage, 并保存到中mPackagesHolder。
+宿主启动插件时会根据包名到mPackagesHolder查找类，设置到Intent中去启动，启动插件首先生成代理插件mProxyActivity
+将mProxyActivity.class设置到Intent中，启动插件类。代理类的onCreate()放大执行时， 会获取插件类的信息（主体，风格等）
+将代理类的风格设置。同事将置身注册到插件类中Activity，插件类的生命周期和方法(setContentView等)由代理类mProxyActivity
+来执行。  
+   
+   
+DroidPlugin的特性：
+   a.免安装（就是如果只要从网上下载一个apk，不用安装apk，在插件机制下，就能运行）
+   b.无需修改源码（因为大量反射，代理，Binder相关，这些足以骗过framework层）
+   c.二进制级别隔离
+   d.插件之间可以相互调用
+   e.解除耦合
+   f.静默安装，就是前面说的不用安装，就可在插件机制中运行apk
+   g.崩溃隔离，插件崩溃，对主应用来说，不会有明显影响
+   h.还原插件自己的多进程机制，适配性
+   i.模块隔离，如可以把UI和控制逻辑进行隔离，控制逻辑可用插件化的方式
+   
+   
+
+
+
+
+   
+   
+   
+   
+   
+   
+	

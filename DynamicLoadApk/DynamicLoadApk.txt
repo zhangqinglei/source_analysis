@@ -171,7 +171,7 @@
 DynamicLoadApk的工作原理， 宿主启动时到插件文件夹去加载插件，生成差价DLPluginPackage, 并保存到中mPackagesHolder。
 宿主启动插件时会根据包名到mPackagesHolder查找类，设置到Intent中去启动，启动插件首先生成代理插件mProxyActivity
 将mProxyActivity.class设置到Intent中，启动插件类。代理类的onCreate()放大执行时， 会获取插件类的信息（主体，风格等）
-将代理类的风格设置。同事将置身注册到插件类中mProxyActivity，插件类的生命周期和方法(setContentView等)由代理类mProxyActivity
+将代理类的风格设置。同事将置身注册到插件类中Activity，插件类的生命周期和方法(setContentView等)由代理类mProxyActivity
 来执行。  
    
    

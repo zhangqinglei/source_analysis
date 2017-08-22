@@ -46,7 +46,7 @@
 
 ButterKnife的设计思想， 采用注解的方式将View ID, method赋值给注解，Activity启动时会检查注解
 获取相应的View.Id,根据ID获取View.同事调用View.setOnClickListener方法，在onClik(View v)
-将回调Activity中注解的method,将View传递给method
+将回调Activity中注解的method,将View传递给method。 系统会自动生成Activity内部类ViewBinder
 
 public @interface ViewBinder {
 

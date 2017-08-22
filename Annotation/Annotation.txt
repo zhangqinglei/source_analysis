@@ -1,7 +1,7 @@
 
 
 Target(ElementType.METHOD)
-Target(ElementType.METHOD)
+Target(ElementType.FIELD)
 Target(ElementType.METHOD)
 Target(ElementType.METHOD)
 

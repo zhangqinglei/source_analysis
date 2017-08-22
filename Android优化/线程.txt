@@ -1,0 +1,121 @@
+
+
+一、线程
+1. 对于sleep()方法，我们首先要知道该方法是属于Thread类中的。而wait()方法，则是属于Object类中的。
+2. sleep()方法导致了程序暂停执行指定的时间，让出cpu该其他线程，但是他的监控状态依然保持者，
+   当指定的时间到了又会自动恢复运行状态。
+3. 在调用sleep()方法的过程中，线程不会释放对象锁。
+
+4.而当调用wait()方法的时候，线程会放弃对象锁，进入等待此对象的等待锁定池，只有针对此对象调用notify()
+  方法后本线程才进入对象锁定池准备获取对象锁进入运行状态。
+  
+5. 每个对象都有一个机锁来控制同步访问。Synchronized关键字可以和对象的机锁交互，来实现线程的同步。
+6. 由于sleep()方法是Thread类的方法，因此它不能改变对象的机锁。所以当在一个Synchronized方法中
+   调用sleep（）时，线程虽然休眠了，但是对象的机锁没有被释放，其他线程仍然无法访问这个对象。
+   而wait()方法则会在线程休眠的同时释放掉机锁，其他线程可以访问该对象。		
+   
+7. Yield()方法是停止当前线程，让同等优先权的线程运行。如果没有同等优先权的线程，
+   那么Yield()方法将不会起作用。
+   
+8. 一个线程结束的标志是：run()方法结束。
+9. 一个机锁被释放的标志是：synchronized块或方法结束。
+
+10. 1) sleep()使当前线程进入停滞状态，所以执行sleep()的线程在指定的时间内肯定不会执行；yield()
+       只是使当前线程重新回到可执行状态，所以执行yield()的线程有可能在进入到可执行状态后马上又被执行。
+    2) sleep()可使优先级低的线程得到执行的机会，当然也可以让同优先级和高优先级的线程有执行的机会；
+	   yield()只能使同优先级的线程有执行的机会。
+	   
+二、Condition
+1. Condition是个接口，基本的方法就是await()和signal()方法；
+2. Condition依赖于Lock接口，生成一个Condition的基本代码是lock.newCondition() 
+3. 调用Condition的await()和signal()方法，都必须在lock保护之内，就是说必须在lock.lock()和lock.unlock之间才可以使用
+4. Conditon中的await()对应Object的wait()；
+　 Condition中的signal()对应Object的notify()；
+   Condition中的signalAll()对应Object的notifyAll()。
+   
+三、Executor, ExecutorService, Executors,
+
+1. Executor接口
+  (1). Executor只是一个接口， 接口只提供void execute(Runnable command);方法
+  
+2. ExeceutorService接口
+   (1). ExeceutorService也是接口， 继承Executor接口
+   (2). ExeceutorService接口方法
+        void shutdown();
+        List<Runnable> shutdownNow();
+        boolean isShutdown();
+        boolean isTerminated();
+        <T> Future<T> submit(Callable<T> task);
+        <T> Future<T> submit(Runnable task, T result);
+        Future<?> submit(Runnable task);
+        <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException;
+        <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException;
+        <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException;
+        <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException;
+		
+3. Executors类
+  (1).  Executors是一个线程池工厂类， 提供封装线程池的方法
+        ->public static ExecutorService newCachedThreadPool()
+	      return new ThreadPoolExecutor(0, Integer.MAX_VALUE,60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
+	      创建大小不受限制的线程池，Integer.MAX_VALUE
+	
+	    ->public static ExecutorService newFixedThreadPool(int nThreads)
+          return new ThreadPoolExecutor(nThreads, nThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());	
+	      创建线程数量大小固定的线程池
+	  
+	    ->public static ExecutorService newSingleThreadExecutor()
+	      return new FinalizableDelegatedExecutorService(new ThreadPoolExecutor(1, 1,0L, TimeUnit.MILLISECONDS,new LinkedBlockingQueue<Runnable>()));
+	      返回大小为1的线程池
+	  
+	    ->public static ScheduledExecutorService newScheduledThreadPool(int corePoolSize)
+          return new ScheduledThreadPoolExecutor(corePoolSize);
+          返回ScheduledThreadPoolExecutor，   
+		  
+四、ThreadFactory
+   
+1. ThreadFactory接口
+   ThreadFactory接口方法
+   Thread newThread(Runnable r);   
+   
+五、Future, Callable, FutureTask
+1. Callable与Runnable的差异
+   Callable的call()方法可以有返回值， Runnable的run()方法没有
+   Callable的call()方法可以抛出异常， Runnable的run()方法不能抛出异常。
+2. FutureTask继承RunnableFuture， RunnableFuture继承Future和Runnable
+
+六、ThreadPoolExecutor
+1. ThreadPoolExecutor.execute调用addWorker()方法将runnable封装到Worker类中，同时在Worker类中通过线程工厂
+   创建线程Thread, 将Wrorker类自身传递到Thread中。将Work变量添加到works中 HashSet<Worker> workers = new HashSet<>();
+   添加的过程有重入锁，添加成功执行Work中的线程Thread t = w.thread; t.start()回调Thread的run()方法。
+   Worker.Thread.run();实际是回调Work中的run()方法。 执行之前封装的firstTask或者从workQueue中取出Runnable对象执行。
+   ->直接使用task(Runable)或者getTask()获取Runnable。执行task.run()方法。
+   如果addWorker()添加成功直接返回，如果不成功则将Runnable对象添加到队列中。
+   isRunning(c) && workQueue.offer(command)
+   如果没有执行且则移除task。 成功的话执行拒绝策略 Running < SHUTDOWN，
+   如果大于核心线程， 尝试addWork（task, false）,失败的话执行拒绝策略。
+   
+2. ThreadPoolExecutor执行shutDown(),canel()之类的方法都是采用重入锁。
+   
+   
+   
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    

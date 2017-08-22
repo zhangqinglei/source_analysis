@@ -19,8 +19,8 @@
         <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException;
    
    
-3. Executor类
-  (1).  Executor是一个线程池工厂类， 提供封装线程池的方法
+3. Executors类
+  (1).  Executors是一个线程池工厂类， 提供封装线程池的方法
         ->public static ExecutorService newCachedThreadPool()
 	      return new ThreadPoolExecutor(0, Integer.MAX_VALUE,60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>());
 	      创建大小不受限制的线程池，Integer.MAX_VALUE

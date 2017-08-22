@@ -1,5 +1,6 @@
 1. EventBus类
    Map<Class<?>, CopyOnWriteArrayList<Subscription>> subscriptionsByEventType， 根据onEvent 方法参数类型为Key.
+   private final SubscriberMethodFinder subscriberMethodFinder = new SubscriberMethodFinder();
    Map<Object, List<Class<?>>> typesBySubscriber = new HashMap(); List<Class<?>>用来保存Object中onEvent方法的参数类型
    例如onEventMainThread（A a）是Object中方法，A 是参数类型.
    currentThreadEventQueue是ThreadLocal<List<Object>>变量
@@ -31,7 +32,7 @@
    methodCache Map<String, List<SubscriberMethod>> 变量
    key值类全名+eventMethodName.
    （1）findSubscriberMethods(Class<?> subscriberClass, String eventMethodName)
-	    ->首先在methodCache中查找List<SubscriberMethod>变量如果不为空， 返回List<SubscriberMethod>变量
+	    ->首先在methodCache中查找List<SubscriberMethod>变量如果不为空， 返回List<SubscriberMethod>变量, 查找的Key为类名+方法名.
 		->若为空遍历subscriberClass方法 Method[] methods = var23.getDeclaredMethods();
 		->查找包含"onEvent"的方法(onEventMainThread, onEventBackgroundThread, onEventAsync),
 		  来确定ThreadMode（主线程，后台线程等类型）。
@@ -66,11 +67,13 @@
 	 
 	 
 	 
-1. (1)EventBus注册是， 遍历Object中声明的onEvent方法，以类名+方法名（MainActivity+onEventMainThread）为key保存到methodCache中。
-      methodCache 是Map<String, List<SubscriberMethod>> 变量. SubscriberMethod中包含方法，参数类型和运行线程类型
+1. (1)EventBus注册是， 遍历Object中声明的onEvent方法，创建SubscriberMethod(method, threadMode, eventType)对象，同时把
+      SubscriberMethod对象保存到List<SubscriberMethod>中，以类名+方法名（MainActivity+onEvent）为key保存到List<SubscriberMethod>
+	  到methodCache中。methodCache 是Map<String, List<SubscriberMethod>> 变量. SubscriberMethod中包含方法，参数类型和运行线程类型
+	
    (2)遍历这些  SubscriberMethod， 创建Subscription， 将Subscription 保存到subscriptions = new CopyOnWriteArrayList();中。
-      将subscriptions保存到subscriptionsByEventType。（根据参数类型保存Subscription队列），post方法调用时根据参数的类型找到
-	  subscriptions，遍历subscriptions中的Subscription获取SubscribeMethod回调注册的事件(onEventMainThread)
+      将subscriptions保存到subscriptionsByEventType。（根据参数类型保存Subscription队列,例如onEventMainThread里的UserInfo），
+	  post方法调用时根据参数的类型找到subscriptions，遍历subscriptions中的Subscription获取SubscribeMethod回调注册的事件(onEventMainThread)
 
 
 

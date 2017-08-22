@@ -1,0 +1,141 @@
+
+
+1. Android系统有六类进程：
+   前台进程：     进行交互的应用程序
+   可见进程：     不可交互但是可见的服务
+   次要服务：     目前正在运行的一些服务（主要服务，如拨号等，是不可能被进程管理终止
+                  的，故这里只谈次要服务）
+   后台进程：     程序通过Home键进入后台
+   内容供应节点： 没有程序实体，进提供内容供别的程序去用的，比如日历供应节点，邮件
+                  供应节点等。在终止进程时，这类程序应该有较高的优先权
+   空进程：       所有的Activity，Service被杀死但是进程仍然存在，没有任何东西运行
+                  在内存
+	
+   有内存管理需求的人可以用MinFreeManager之类的软件进行进程管理，分别为六类进程设定
+   不同的阈值来操纵系统的内存分配机制。不过对于一般用户而言，Android系统默认的分配
+   机制已经可以满足使用需要，因此也不需要再去调整。	
+   				  
+   
+2. 前台进程（foreground）
+   目前正在屏幕上显示的进程和一些系统进程。举例来说，Dialer，Storage，Google Search
+   等系统进程就是前台进程；再举例来说，当你运行一个程序，如浏览器，当浏览器界面在前
+   台显示时，浏览器属于前台进程（foreground），但一旦你按home回到主界面，浏览器就变
+   成了后台程序（background）。我们最不希望终止的进程就是前台进程。 
+   
+3. 可见进程（visible）
+   可见进程是一些不再前台，但用户依然可见的进程，不能与用户交互，历史天气，时间等
+   
+4. 桌面进程（home app）
+   即launcher，保证在多任务切换之后，可以快速返回到home界面而不需重新加载launcher
+   
+5. 后台进程（hidden）
+   即是后台进程（background），就是我们通常意义上理解的启动后被切换到后台的进程，如浏
+   览器，阅读器等。当程序显示在屏幕上时，他所运行的进程即为前台进程（foreground），一
+   旦我们按home返回主界面（注意是按home，不是按back），程序就驻留在后台，成为后台进程
+   （background）
+   
+7. 幽灵刽子手LMK (Low Memory Killer)
+   执行条件：
+     剩余内存小于应用定义的APP_MEM值，开始查看adj值列表，kill相应程序。
+   实现机制
+     module_init(lowmem_init);  
+     module_exit(lowmem_exit);  
+     模块加载和退出的函数，主要的功能就是register_shrinker和unregister_shrinker结构体
+     lowmem_shrinker。主要是将函数lowmem_shrink注册到shrinker链表里，在mm_scan调用。
+	 
+	 
+     1. low memory killer需要对adj高于多少（min_adj）的进程进行分析是否释放。
+	 2. 对每个sig->oom_adj大于min_adj的进程，找到占用内存最大的进程存放在selected中。
+	 3. 发送SIGKILL信息，杀掉该进程。
+	   一般而言，占用内存越多，oom_adj就越大，也就越有可能被选中。
+	  
+    资源配置
+	adj的值可以在下面配置
+	阈值表可以通过/sys/module/lowmemorykiller/parameters/adj
+	和/sys/module/lowmemorykiller/parameters/minfree进行配置
+	
+	例如在init.rc中：
+	write /sys/module/lowmemorykiller/parameters/adj 0,1,2,7,14,15  
+    write /proc/sys/vm/overcommit_memory 1  
+    write /sys/module/lowmemorykiller/parameters/minfree 1536,2048,4096,5120,5632,6144 
+	
+	进程oom_adj同样可以进行设置，通过write /proc/<PID>/oom_adj ，在init.rc中，init进程
+	的pid为1，omm_adj被配置为-16，永远不会被杀死。write /proc/1/oom_adj -16  
+	
+	进程omm_adj的大小跟进程的类型以及进程被调度的次序有关。进程的类型，可以在
+	ActivityManagerService中清楚的看到：
+	static final int EMPTY_APP_ADJ;  
+	static final int HIDDEN_APP_MAX_ADJ;  
+	static final int HIDDEN_APP_MIN_ADJ;  
+	static final int HOME_APP_ADJ;  
+	static final int BACKUP_APP_ADJ;  
+	static final int SECONDARY_SERVER_ADJ;  
+	static final int HEAVY_WEIGHT_APP_ADJ;  
+	static final int PERCEPTIBLE_APP_ADJ;  
+	static final int VISIBLE_APP_ADJ;  
+	static final int FOREGROUND_APP_ADJ;  
+	static final int CORE_SERVER_ADJ = -12;  
+	static final int SYSTEM_ADJ = -16
+	
+8. ActivityManagerService执行进程管理
+   打开程序或者有程序进入后台时都会执行updateOomAdjLocked()函数：
+   在一些设备内存比较低的情况下，我们可以对其内存进行优化，从而让我们的设备运行的更加流畅。
+   
+9. 内存减少程序运行慢的原因
+   在内存剩余不多时打开大型程序，会触发系统自身的调进程调度策略，这是十分消耗系统资源的操作，
+   特别是在一个程序频繁向系统申请内存的时候。这种情况下系统并不会关闭所有打开的进程，而是选
+   择性关闭，频繁的调度自然会拖慢系统。所以，论坛上有个更改内存阀值的程序可以有一定改善。但
+   改动也可能带来一些问题，取决于值的设定。
+   
+10. 安卓Android的应用在被切换到后台时，它其实已经被暂停了，并不会消耗cpu资源，只保留了运行
+    状态。所以为什么有的程序切出去重进会到主界面， 一个程序如果想要在后台处理些东西，如音乐
+	播放，它就会开启一个服务。服务可在后台持续运行，所以在后台耗电的也只有带服务的应用了。
+	这个在进程管理软件里能看到，标签是service。所以没有带服务的应用在后台是完全不耗电的，
+	没有必要关闭
+	
+11. HOME键和后退键
+    在运行一个程序时，按一下HOME键就可以退到桌面，一般来说按一下退出键也可以退到桌面，
+	这两者有什么区别呢？
+
+    按HOME键，看起来似乎是退出了，但是其实这个软件并没有被关闭，而是转为了后台程序
+	（指一般的软件，不讨论特别种类的软件）
+    按退出键，看起来也是退出没错，但这个软件其实是被转为了空置程序（音乐除外，音乐属
+	于有服务的特殊软件）
+	
+	home退出，程序保留状态为后台进程；按返回键退出，程序保留状态为空进程。空进程的oom_adj
+	评值高于后台进程，更容易被系统清理。所以推荐用返回键退出。
+	
+12. 进程管理策略
+    Android采取了一种有别于Linux的进程管理策略，有别于Linux的在进程活动停止后就结束该进程，
+	Android把这些进程都保留在内存中，直到系统需要更多内存为止。这些保留在内存中的进程通常
+	情况下不会影响整体系统的运行速度，并且当用户再次激活这些进程时，提升了进程的启动速度。
+	
+	Android是依据一个名为LRU（last recently used最近使用过的程序）列表，将程序进行排序，
+	并结束最早的进程
+	(1)系统会对进程的重要性进行评估，并将重要性以“oom_adj”这个数值表示出来，赋予各个进程；
+	  （系统会根据“oom_adj”来判断需要结束哪些进程，一般来说，“oom_adj”的值越大，该进程被
+	  系统选中终止的可能就越高）
+	(2)前台程序的“oom_adj”值为0，这意味着它不会被系统终止，一旦它不可访问后，会获得个更高的“oom_adj”，
+	配置参数：
+	Foreground：6
+	Visible：8
+	Secondary Server：16
+	Hiden App：80
+	Content Provider：90
+	Empty:100
+	
+13. 应用的切花操作
+    Android系统并不会在用户切换应用的时候执行交换内存操作。Android会把那些不包含Foreground组件
+	的应用进程放到LRU Cache中。例如，当用户开始启动一个应用时，系统会为它创建一个进程。但是当
+	用户离开此应用，进程不会立即被销毁，而是被放到系统的Cache当中。如果用户后来再切换回到这个
+	应用，此进程就能够被马上完整地恢复，从而实现应用的快速切换。
+	
+	如果你的应用中有一个被缓存的进程，这个进程会占用一定的内存空间，它会对系统的整体性能有影响。
+	因此，当系统开始进入Low Memory的状态时，它会由系统根据LRU的规则与应用的优先级，内存占用情况
+	以及其他因素的影响综合评估之后决定是否被杀掉。
+	
+
+
+	 
+	
+    
