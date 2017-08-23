@@ -10,3 +10,31 @@
    h.还原插件自己的多进程机制，适配性
    i.模块隔离，如可以把UI和控制逻辑进行隔离，控制逻辑可用插件化的方式
 
+   
+1. 应用启动时：Application.oCreate()
+   ->PluginHelper.getInstance().applicationAttachBaseContext(base);
+   ->PluginHelper.initPlugin(baseContext);
+   ->PluginProcessManager.installHook(baseContext);
+     创建钩子（Hook）
+   ->HookFactory.installHook(Hook hook, ClassLoader cl)
+   ->Hook 是IActivityManagerHook等ProxHook的子类ProxyHook是Hook的子类。Hook又继承了InvocationHandler。
+     InvocationHandler。 Hook会回调IActivityManagerHook.createHookHandle(),创建IActivityManagerHookHandle。
+	 实际上是由IActivityManagerHook执行IActivityManagerHookHandle里的方法。
+	 
+	 IActivityManagerHook：“劫持”所有IActivityManager的API
+     IActivityManagerHookHandle：安装所有被“劫持”的API的处理对象，加入到Map中
+     IActivityManagerHookHandle.startActivity：这是一个内部类，专门处理startActivity()方法。以此类推，
+	 还有startActivityAsUser类、startActivityAsCall类等等，每个API方法都对应一个处理类。
+	 
+   应用启动时候安装Hook
+   
+   而是把mH的mCallback成员变量替换成了一个PluginCallback对象，这样就可以在PluginCallback的handleMessage()
+   里任意拦截想要处理的消息了（注: mH原来的mCallback是null）。消息处理完后如果还想再送回ActivityThread进行处理，
+   返回false，这样就会继续调用mH的handleMessage()，具体参见Handler的dispatchMessage()方法：
+  
+2. 加载插件
+   ClassLoader classloader = new PluginClassLoader();
+	 
+	 
+
+   

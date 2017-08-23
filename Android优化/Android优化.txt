@@ -1,5 +1,7 @@
 
 
+
+
 一、内存泄漏的优化
     
 1. Handler内存泄漏， 
@@ -99,7 +101,7 @@
 	(4)
 	
 四、数据加载优化
-    
+
 1. ListView数据加载优化
    (1)convertView要复用，通过convertView.setTag(Holder)和convertView.getTag()来实现复用，避免
       重复加载数据， 使用ViewHolder。
@@ -114,6 +116,10 @@
    对于图片过大的图片需要压缩，inJustDecodeBounds参数设为true, 获取宽高，计算压缩的比例，然后
    在将inJustDecodeBounds设为false。压缩图片
    
+5. 采用分页加载。
+
+
+   
 五、Java优化，
 1. 全局变量尽量不要初始化，
    虚拟机在加载类的时候会根据变量初始化来初始化各种变量
@@ -121,9 +127,79 @@
 2. 尽量不要再构造函数里进行初始化
    这样会加载虚拟机的负担，导致加载慢。
    
+五、动画
+1. 硬件加速：使用动画的过程中，建议开启硬件加速，这样会提高动画的流畅性。 
+   开启方法
+   <activity android:hardwareAccelerated="true" />
+1. Android动画分为补间动画，帧动画和属性动画。
+2. 补间动画又可以分为四种形式，分别是 alpha（淡入淡出），translate（位移），scale（缩放大小），rotate（旋转）。
+3. 属性动画，顾名思义它是对于对象属性的动画。因此，所有补间动画的内容，都可以通过属性动画实现
+   animator = ObjectAnimator.ofFloat(mImageAnimation, "alpha", 1f, 0f);
+   animator = ObjectAnimator.ofFloat(mImageAnimation, "rotation", 0f, 360f, 0f);
+   animator = ObjectAnimator.ofFloat(mImageAnimation, "translationX", 0f, -300f, 0f);
+   animator = ObjectAnimator.ofFloat(mImageAnimation, "scaleX", 1f, 2f, 1f);   
+   anim.setDuration(1000);
+   anim.setRepeatCount(-1);
+   anim.setRepeatMode(ObjectAnimator.REVERSE);
+   anim.start();
+   AnimatorSet set = new AnimatorSet();
+   set.play(scaleXAnimator).with(scaleYAnimator).with(translationXAnimator).with(alphaAnimator);
+   <set android:ordering="sequentially">
+    <set>
+        <objectAnimator
+            android:propertyName="x"
+            android:duration="500"
+            android:valueTo="400"
+            android:valueType="intType"/>
+        <objectAnimator
+            android:propertyName="y"
+            android:duration="500"
+            android:valueTo="300"
+            android:valueType="intType"/>
+    </set>
+    <objectAnimator
+        android:propertyName="alpha"
+        android:duration="500"
+        android:valueTo="1f"/>
+    </set>
+4. 帧动画
+   代码添加
+   animationDrawable = (AnimationDrawable) mImageAnimation.getDrawable();
+   animationDrawable.addFrame(getResources().getDrawable(R.drawable.gaoyuanyuan1), 200);
+   animationDrawable.addFrame(getResources().getDrawable(R.drawable.gaoyuanyuan2), 200);
+   animationDrawable.addFrame(getResources().getDrawable(R.drawable.gaoyuanyuan3), 200);
+   animationDrawable.start();  
+   
+   XML添加动画
+   <animation-list android:oneshot="false">
+    <item android:drawable="@drawable/gaoyuanyuan1" android:duration="200"/>
+    <item android:drawable="@drawable/gaoyuanyuan2" android:duration="200"/>
+   </animation-list>
+   animationDrawable = (AnimationDrawable) mImageAnimation.getDrawable();
+   animationDrawable.start();  
+   
+5. 帧动画溢出解决方案
+   1. 获取每帧的执行时间和总共执行时间
+   for (int i = 0; i < animationDrawable.getNumberOfFrames(); i++) {
+		duration += animationDrawable.getDuration(i);
+   }
+    
+   2.获取每一帧的ID
+   3.通过Handler.postDelay();执行View.setBackgroundResource(ID);
+   
+6. 雪花动画，
+   随机生成雪花动画的位置， 以位置作为中心绘制雪花原点， 然后获取Handelr每隔一定时间
+   Handler.postDelay()调用invalidate()。 invalidare会触发onDraw()函数，onDraw()调用
+   Handler.post();
+   
+   
+六、事件分发 
+    dispatchTouchEvent(), onInterceptTouchEvent, onTouchEvent
+	ACTION_DOWN	执行到onTouchEvent()方法中调用performButtonActionOnTouchDown()
+	确认是否消费事件。
    
 六 View cache优化
-   在Android的显示机制中，View的软件渲染都是基于bitmap图片进行的处理。并且刷新机制中只要是与脏
+   在Android的显示机制中，View的软件渲染都是基于bitmap图片进行的处理。并且刷新机R制中只要是与脏
    数据区有交集的视图都将重绘，所以在View的设计中就有一个cache的概念存在，这个cache无疑就是一个
    bitmap对象，它的存在本来是用来提高view绘制效率的，但是往往在应用的设计中也是一个影响性能的因素
    setDrawingCacheQuality(int) 

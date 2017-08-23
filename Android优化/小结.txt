@@ -1,0 +1,107 @@
+1. 三种方法的使用对比**
+  scrollTo/scrollBy：操作简单，适合对View内容的滑动；
+  动画：操作简单，主要适合于没有交互的View和实现复杂的动画效果；
+  改变布局参数：操作稍微复杂，适用于有交互的View。
+  
+2. measure：测量View的宽和高
+   layout：确定View在父控件中的放置位置
+   draw：负责将View绘制在屏幕上。
+   
+3. onAttachToWindow：在包含View的Activity启动时调用
+   onDetachFromWindow：在包含View的Activity退出或者View被remove时回调
+   onVisibilityChanged：当View的可见状态发生改变时调用
+   
+4. ViewRootImpl：
+   连接WindowManager(外界访问Window的入口)和DecorView（顶级View）的纽带，
+   View的三大流程均是通过ViewRoot来完成的。
+   DecorView：顶级View
+   
+5. 绘制分发流程
+   ViewRootImpl.scheduleTraversal()
+   ->通过Handler调用performTraersal()
+   ->performMeasure()->measure()->onMeasure()
+   ->performLayout()->layout()->onLayout();
+   ->performOnDraw()->draw()->onDraw();
+   
+6. Measure过程后可以调用getMeasureWidth和getMeasureHeight方法获取View测量后的宽高，
+   与getWidth和getHeight的区别是：getMeasuredHeight()返回的是原始测量高度，与屏幕
+   无关，getHeight()返回的是在屏幕上显示的高度
+   
+   Layout过程确定View四个顶点的位置和实际的宽高。
+   
+   Draw过程确定View的显示，只有draw方法完成后View的内容才会出现在屏幕上。
+   
+   
+7. 线程和进程的区别
+   1. 进程间相互独立，同一进程的各线程间共享。某进程内的线程在其它进程不可见。
+   2. 进程间通信IPC，线程间可以直接读写进程数据段（如全局变量）来进行通信——需
+      要进程同步和互斥手段的辅助，以保证数据的一致性。
+   3. 线程上下文切换比进程上下文切换要快得多。
+   线程的优点
+  （1）易于调度。 
+  （2）提高并发性。通过线程可方便有效地实现并发性。进程可创建多个线程来执行同一程序的不同部分。 
+  （3）开销少。创建线程比创建进程要快，所需开销很少。。 
+  （4）利于充分发挥多处理器的功能。通过创建多线程进程（即一个进程可具有两个或更多个线程），每
+       个线程在一个处理器上运行，从而实现应用程序的并发性，使每个处理器都得到充分运行。 
+	   
+	   
+8. HashMap排序
+   //将map.entrySet()转换成list  
+    List<Map.Entry<String, Long>> list = new ArrayList<Map.Entry<String, Long>>(map.entrySet());  
+    Collections.sort(list, new Comparator<Map.Entry<String, Long>>() {  
+        //降序排序  
+        @Override  
+        public int compare(Entry<String, Long> o1, Entry<String, Long> o2) {  
+            //return o1.getValue().compareTo(o2.getValue());  
+            return o2.getValue().compareTo(o1.getValue());  
+        }  
+    }); 
+
+
+9. Collections.sort()是借用Arrays.sort()进行排序的
+
+10. 适配面试
+    1. 多用dp,少用或者尽量不用px; 
+    实际开发主流适配方法      
+    
+	方法1.图片适配: 
+    大图按对应分辨率切图，放在对应的分辨率图片文件下，icon类的图片切一套，
+	放在xhdpi文件下(最主流分辨率)	
+	
+	方法2.Dimens适配
+	布局适配用Dimens适配，用DimensEx软件以某分辨率为基准创建获取其他分辨率
+	对应Dimens尺寸,在项目中分别放入对应分辨率的文件夹内,在开发中AndroidStudio
+	会自动以基准分辨率为主,合理缩放适配.
+	
+	方法3.AutoLayout适配(炸天的适配终结者)
+    使用此工具可以直接使用px为尺寸所有单位(字体单位仍然为sp),以基准分辨率为
+	基础开发,其他分辨率会根据基准分辨率自行适配
+    步骤:
+       1.    AndroidStudio导入Autolayout项目或者jar包,添加依赖
+       2.   配置文件中配置设置基准尺寸
+       3.   Activity去继承AutoLayoutActivity
+	   
+11. 在程序启动的时候就创建若干线程来响应处理，它们被称为线程池，里面的线程叫工作线程 
+　　第一：降低资源消耗。通过重复利用已创建的线程降低线程创建和销毁造成的消耗。 
+　　第二：提高响应速度。当任务到达时，任务可以不需要等到线程创建就能立即执行。 
+　　第三：提高线程的可管理性。 
+
+    最大的好处是线程复用
+	线程池主要用来解决线程生命周期开销问题和资源不足问题。通过对多个任务重复使用线程，
+	线程创建的开销就被分摊到了多个任务上了，而且由于在请求到达时线程已经存在，所以消
+	除了线程创建所带来的延迟。这样，就可以立即为请求服务，使用应用程序响应更快。另外
+	，通过适当的调整线程中的线程数目可以防止出现资源不足的情况。
+	
+    线程池适合应用的场合
+      当一个服务器接受到大量短小线程的请求时，使用线程池技术是非常合适的，它可以大大
+	  减少线程的创建和销毁次数，提高服务器的工作效率。但是线程要求的运动时间比较长，
+	  即线程的运行时间比
+
+   
+   
+   
+	
+   
+   
+   
+   
