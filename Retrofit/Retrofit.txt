@@ -6,6 +6,8 @@ Retrofit类
   private final List<CallAdapter.Factory> adapterFactories; //ExecutorCallAdapterFactory
   private final Executor callbackExecutor; //Android平台 MainThreadExecutor implements Executor 
   
+  Retrofit的本质是将请求组装成OKHttp中的Call
+  
   
 
 MainThreadExecutor类
@@ -15,6 +17,13 @@ MainThreadExecutor类
 1. retrofit采用代理+注解方案
 2. Retrofit.Builder() 
    (1) 创建平台Platform PLATFORM = findPlatform() 创建平台Android Android类继承Platform类
+       Platform.defaultCallAdapterFactory()返回ExecutorCallAdapterFactory， ExecutorCallAdapterFactory继承
+	   CallAdapter.Factory 重写get(Type returnType, Annotation[] annotations,Retrofit retrofit), 返回
+	   重写的CallAdapter。 
+	   CallAdapter.adapt()方法返回Call<T>对象， 重写为ExecutorCallbackCall类， ExecutorCallbackCall封装了
+	   callbackExecutor， 和实际请求的OKHttp Call, 通过OKHttp Call 指向enqueue。 执行结果通过 callbackExecutor返回。
+	   
+	   
    (2) List<Converter.Factory> converterFactories = new ArrayList<>(); 
        converterFactories添加BuiltInConverters； 
 	   converterFactories.add(new BuiltInConverters());
@@ -23,7 +32,9 @@ MainThreadExecutor类
 4. Builder.build()
    ->callFactory 是OkHttpClient变量 callFactory = new OkHttpClient();
    ->callbackExecutor是Executor变量 callbackExecutor = new MainThreadExecutor();在Android平台中创建.
+     Executer.execute方法调用Handelr.post()在主线程中返回结果
    ->创建ExecutorCallAdapterFactory， 将callbackExecutor保存到ExecutorCallAdapterFactory中。
+     callbackExecutor 将返回的结果 调用Callback返回
    ->adapterFactories添加ExecutorCallAdapterFactory。
    返回Retrofit
 
@@ -39,9 +50,14 @@ MainThreadExecutor类
 	 并保存到serviceMethodCache中。serviceMethodCache.put(method, result);
    ->OkHttpCall okHttpCall = new OkHttpCall<>(serviceMethod, args);
    ->serviceMethod.callAdapter.adapter(okHttpCall);
+     callAdapter是在ExecutorCallAdapterFactory.get方法里重写的Reftrofit 的Call。 
    ->adapter() -> return new ExecutorCallbackCall<>(callbackExecutor, call); 将HttpCall变量保存到ExecutorCallbackCall中。
-	 
-	 
+     ->在Retrofit初始化时定义ExecutorCallAdapterFactory。 CallAdapter在ExecutorCallAdapterFactory工厂类中重写， 
+	   ExecutorCallAdapterFactory继承CallAdapter.Factory,重写get方法，返重写的CallAdapter。CallAdapter.adapt(Call<R> call)
+	   被重写。 返回new ExecutorCallbackCall<>(callbackExecutor, call); 
+	   
+	   ExecutorCallbackCall执行enqueue()方法是，实际是调用OKHttpCall代理去执行。OKHttpCall.enqueue()方法创建真正的执行Call对象
+	   RealCall去执行请求。
 	 
 
 7. 创建ServiceMethod.Builder()
@@ -91,8 +107,57 @@ MainThreadExecutor类
    
    
    
-   
-   
+==================================================CallAdapter.Factory======================================
+Factory用于重写CallAdapter， 在Factory.get()方法中重写CallAdapter
+
+=============================================CallAdapter=================================================
+CallAdapter, 重写adapt()返回Call<>对象。
+return new ExecutorCallbackCall<>(callbackExecutor, call);
+ExecutorCallbackCall继承Call， 重写retrofit.Call的execute和enqueue等方法， 实际调用OKHttp Call的execute,enqueue
+等方法。 在callbackExecutor中调用Handler 在主线程中返回。
+
+
+============================================================================================================
+Converter<F, T>  T convert(F value)
+F原始值， T是转化过的值
+
+
+
+========================================GsonConverterFactory================================================
+
+->create()
+return new GsonConverterFactory(gson);
+ requestBodyConverter
+
+重写Converter.Factory.responseBodyConverter()和 requestBodyConverter()
+
+
+responseBodyConverter()
+TypeAdapter<?> adapter = gson.getAdapter(TypeToken.get(type));
+new GsonRequestBodyConverter<>(gson, adapter)
+
+====================================ServiceMethod.Builder===================================================
+callAdapter = createCallAdapter();
+创建CallAdapter
+根据CallAdapter获取返回类型
+responseType = callAdapter.responseType();
+创建Converter.
+responseConverter = createResponseConverter();
+ 
+
+
+实际请求流程。在Platform(Android)中请求  ExecutorCallAdapterFactory， ExecutorCallAdapterFactory重写  
+get()方法， 返回重写的CallAdapter， 重写的CallAdapter中的CallAdapter.adapt(Call call)把OKHttp 的Call封装到， 
+OkHttpCall是在InvokerHandelr的方法中创建。
+Retrofit的Call 中。 实际执行时Reftrofit的Call的enqueue()调用OKHttp的Call的enqueue()方法， 在请求响应结果中
+调callbackExecutor()MainThreadExecutor方法返回. 实际是MainThreadExecutor.execute()方法通过Handler.post()调用
+Runnable对象，调用OKHttp的 Callback返回。
+OKHttpCall封装了创建的ServiceMethod, 通过解析注册生成响应的Http请求响应。
+OKHttpCall.createRawCall() 调用Request request = serviceMethod.toRequest(args)生成Request.
+
+CallAdapter是适配对象适配器。可以将Call封装到不同的数据结构中。
+
+
    
    
    

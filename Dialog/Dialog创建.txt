@@ -1,0 +1,37 @@
+
+===================================Dialog构造函数========================================================
+Dialog构造函数
+->获取WindowManager创建PhoneWindow， 设置WindowCallback
+  mWindowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+  final Window w = new PhoneWindow(mContext);
+  mWindow = w;
+  w.setCallback(this);
+  w.setOnWindowDismissedCallback(this);
+  
+========================================Dialog.show()=====================================================
+
+已经创建了DecorView, 直接设置setVisibility()
+
+
+->调用OnCreate()
+  dispatchOnCreate(null);
+->如果已经创建了Dialog调用onConfigurationChanged()
+  final Configuration config = mContext.getResources().getConfiguration();
+  mWindow.getDecorView().dispatchConfigurationChanged(config);
+->回调onStart()
+  onStart();
+->Window创建DecorView
+  mDecor = mWindow.getDecorView();
+->设置风格，添加 DecorView
+  WindowManager.LayoutParams l = mWindow.getAttributes();
+  mWindowManager.addView(mDecor, l);
+  mShowing = true;
+  
+  
+======================================Dialog.hide()========================================================
+mDecor.setVisibility(View.GONE);
+
+======================================Dialog.dismiss=======================================================
+->移除DecorView
+  mWindowManager.removeViewImmediate(mDecor);
+->回调onStop()

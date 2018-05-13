@@ -1,0 +1,275 @@
+
+
+================================================RequestManager===============================================
+RequestManager构造函数
+        this.lifecycle = lifecycle;
+        this.treeNode = treeNode;
+        this.requestTracker = requestTracker;
+        this.glide = Glide.get(context);
+        this.optionsApplier = new OptionsApplier();
+		
+==========================================OptionsApplier=====================================================
+apply()创建GenericRequestBuilder子类对象
+GenericRequestBuilder
+
+============================================DrawableTypeRequest==============================================
+DrawableTypeRequest继承DrawableRequestBuilder， DrawableRequestBuilder<ModelType, ImageVideoWrapper, GifBitmapWrapper, GlideDrawable>
+继承GenericRequestBuilder<ModelType, DataType, ResourceType, TranscodeType>
+
+
+ModelType是String
+DataType是ImageVideoWrapper
+ResourceType是GifBitmapWrapper
+TranscodeType是GlideDrawable
+
+DrawableRequestBuilder(Context context, Class<ModelType> modelClass,
+            LoadProvider<ModelType, ImageVideoWrapper, GifBitmapWrapper, GlideDrawable> loadProvider, Glide glide,
+            RequestTracker requestTracker, Lifecycle lifecycle)
+			
+loadProvider是FixedLoadProvider
+
+
+========================================GenericRequestBuilder=================================================
+
+->GenericRequestBuilder可以设置缓存策略、内存策略、设置大小、设置动画等
+  diskCacheStrategy()
+  skipMemoryCache()
+  override(int width, int height)
+  animate(GlideAnimationFactory<TranscodeType> animationFactory)
+  animate(ViewPropertyAnimation.Animator animator)
+  
+  
+
+GenericRequestBuilder(Context context, Class<ModelType> modelClass,
+            LoadProvider<ModelType, DataType, ResourceType, TranscodeType> loadProvider,
+            Class<TranscodeType> transcodeClass, Glide glide, RequestTracker requestTracker, Lifecycle lifecycle)
+			
+->ModelType是String
+  DataType是ImageVideoWrapper
+  ResourceType是GifBitmapWrapper
+  TranscodeType是GlideDrawable
+  this.context = context;
+        this.modelClass = modelClass;
+        this.transcodeClass = transcodeClass;
+        this.glide = glide;
+        this.requestTracker = requestTracker;
+        this.lifecycle = lifecycle;
+        this.loadProvider = loadProvider != null
+                ? new ChildLoadProvider<ModelType, DataType, ResourceType, TranscodeType>(loadProvider) : null;
+	
+	FixedLoadProvider被封装到ChildLoadProvider中
+	
+->into(Y target)
+  target继承Target接口
+  glide.buildImageViewTarget(view, transcodeClass)
+  创建GenericRequest，
+  Request request = buildRequest(target);
+  把创建的Request保存到ViewTarget中ImageView中的Target 
+  target.setRequest(request);
+  添加生命周期监听
+  lifecycle.addListener(target);
+  执行GenericRequest
+  requestTracker.runRequest(request);
+  请求开始
+  request.begin();
+  
+->Request buildRequest(Target<TranscodeType> target) {
+  obtainRequest(target, sizeMultiplier, priority, parentCoordinator)
+
+->Request obtainRequest(Target<TranscodeType> target, float sizeMultiplier, Priority priority,
+            RequestCoordinator requestCoordinator)
+			
+  GenericRequest.obtain(
+                loadProvider,
+                model,
+                signature,
+                context,
+                priority,
+                target,
+                sizeMultiplier,
+                placeholderDrawable,
+                placeholderId,
+                errorPlaceholder,
+                errorId,
+                fallbackDrawable,
+                fallbackResource,
+                requestListener,
+                requestCoordinator,
+                glide.getEngine(),
+                transformation,
+                transcodeClass,
+                isCacheable,
+                animationFactory,
+                overrideWidth,
+                overrideHeight,
+                diskCacheStrategy);
+    }
+	
+    创建GenericRequest， loadProvider是ChildLoaderProvider, model String
+	
+	request = new GenericRequest<A, T, Z, R>();
+	request.init(loadProvider,
+                model,
+                signature,
+                context,
+                priority,
+                target,
+                sizeMultiplier,
+                placeholderDrawable,
+                placeholderResourceId,
+                errorDrawable,
+                errorResourceId,
+                fallbackDrawable,
+                fallbackResourceId,
+                requestListener,
+                requestCoordinator,
+                engine,
+                transformation,
+                transcodeClass,
+                isMemoryCacheable,
+                animationFactory,
+                overrideWidth,
+                overrideHeight,
+                diskCacheStrategy);
+				
+
+->onSizeReady(overrideWidth, overrideHeight);
+  ModelLoader<A, T> modelLoader = loadProvider.getModelLoader();
+  loadProvider是ChildLoaderProvider， getModelLoader()通过FixLoaderProvider的getModelLoader()获取
+  ImageVideoModelLoader
+  
+  final DataFetcher<T> dataFetcher = modelLoader.getResourceFetcher(model, width, height);
+  dataFetcher是ImageVideoFetcher
+  ResourceTranscoder<Z, R> transcoder = loadProvider.getTranscoder();
+  transcoder是GlideBitmapDrawableTranscoder
+  
+  loadedFromMemoryCache = true;
+  
+  loadStatus = engine.load(signature, width, height, dataFetcher, loadProvider, transformation, transcoder,
+                priority, isMemoryCacheable, diskCacheStrategy, this);
+
+==============================================================================================================
+buildProvider(glide, streamModelLoader, fileDescriptorModelLoader, GifBitmapWrapper.class, GlideDrawable.class, null)
+
+<A, Z, R> FixedLoadProvider<A, ImageVideoWrapper, Z, R> buildProvider(Glide glide,
+            ModelLoader<A, InputStream> streamModelLoader,
+            ModelLoader<A, ParcelFileDescriptor> fileDescriptorModelLoader, Class<Z> resourceClass,
+            Class<R> transcodedClass,
+            ResourceTranscoder<Z, R> transcoder)
+			
+
+->FixedLoadProvider<A, T, Z, R> implements LoadProvider<A, T, Z, R>
+  A是String, 
+  T 是ImageVideoWrapper， 
+  Z是GifBitmapWrapper
+  R是GlideDrawable
+
+
+->获取注册的Transcoder
+  transcoder = glide.buildTranscoder(resourceClass, transcodedClass);
+  resourceClass是GifBitmapWrapper
+
+
+->获取注册的DataLoadProvider
+  DataLoadProvider<ImageVideoWrapper, Z> dataLoadProvider = glide.buildDataProvider(ImageVideoWrapper.class,
+                resourceClass);
+  resourceClass是GifBitmapWrapper
+->ImageVideoModelLoader<A> modelLoader = new ImageVideoModelLoader<A>(streamModelLoader, fileDescriptorModelLoader);
+
+===========================================ImageVideoModelLoader===============================================
+封装了StreamStringLoader和FileDescriptorStringLoader
+->getResourceFetcher()
+  把StreamStringLoader和FileDescriptorStringLoader的getResourceFetcher()封装到ImageVideoFetcher中。
+  return new ImageVideoFetcher(streamFetcher, fileDescriptorFetcher);
+  
+  
+==========================================ImageVideoFetcher====================================================
+->从StreamStringLoader的DataFetcher中获取InputStream和FileDescriptorUriLoader中获取fileDescriptor封装到
+  is = streamFetcher.loadData(priority);
+  fileDescriptor = fileDescriptorFetcher.loadData(priority);
+  return new ImageVideoWrapper(is, fileDescriptor);
+
+  
+  
+======================================FixedLoadProvider=========================================================
+private final ModelLoader<A, T> modelLoader;
+private final ResourceTranscoder<Z, R> transcoder;
+private final DataLoadProvider<T, Z> dataLoadProvider;
+
+A是String
+T是ImageVideoWrapper
+Z是GifBitmapWrapper
+R是GlideDrawable
+
+->FixedLoadProvider(ModelLoader<A, T> modelLoader, ResourceTranscoder<Z, R> transcoder, DataLoadProvider<T, Z> dataLoadProvider)
+
+  modelLoader是ImageVideoModelLoader
+  transcoder是GlideBitmapDrawableTranscoder
+  dataLoadProvider是ImageVideoGifDrawableLoadProvider
+
+
+==============================================ImageViewTarget==================================================
+继承ViewTarget
+->构造函数
+  ImageViewTarget(ImageView view) 
+->onResourceReady(Z resource)
+  把resource设置到父类中的View中, Z是GlideDrawable
+  子类重写setResource，保存到ViewTarget中的ImageView中。
+  
+
+ImageViewTarget有GlideDrawableImageViewTarget，BitmapImageViewTarget和DrawableImageViewTarget三个子类
+都要重写ImageViewTarget。
+
+=========================================ImageViewTargetFactory================================================
+根据输入的Class<Z> clazz的来创建具体ImageViewTarget子类
+
+==========================================Engine===============================================================
+->load(Key signature, int width, int height, DataFetcher<T> fetcher,
+            DataLoadProvider<T, Z> loadProvider, Transformation<Z> transformation, ResourceTranscoder<Z, R> transcoder,
+            Priority priority, boolean isMemoryCacheable, DiskCacheStrategy diskCacheStrategy, ResourceCallback cb)
+
+
+
+->cb是GenericRequest
+
+->创建EngineKey
+  EngineKey key = keyFactory.buildKey(id, signature, width, height, loadProvider.getCacheDecoder(),
+                loadProvider.getSourceDecoder(), transformation, loadProvider.getEncoder(),
+                transcoder, loadProvider.getSourceEncoder());
+  根据Key从缓存中加载
+  EngineResource<?> cached = loadFromCache(key, isMemoryCacheable);
+  
+  创建EngineJob 
+  EngineJob engineJob = engineJobFactory.build(key, isMemoryCacheable);
+  DecodeJob<T, Z, R> decodeJob = new DecodeJob<T, Z, R>(key, width, height, fetcher, loadProvider, transformation,
+                transcoder, diskCacheProvider, diskCacheStrategy, priority);
+				
+  创建执行任务
+  EngineRunnable runnable = new EngineRunnable(engineJob, decodeJob, priority);
+  EngineJob执行加载任务
+  engineJob.start(runnable);
+  future = diskCacheService.submit(engineRunnable);
+  
+  
+===============================================EngineRunnable==================================================
+->run()
+  resource = decode();
+  
+===============================================DecodeJob=======================================================
+->decodeSource()
+  final A data = fetcher.loadData(priority);
+  A是ImageVideoWrapper
+  通过ImageVideoModelLoader获取ImageVideoFetcher， ImageVideoFetcher中获取InputStream, 封装在ImageVideoWrapper中
+  
+  
+  
+  
+
+
+
+
+
+
+
+ 
+

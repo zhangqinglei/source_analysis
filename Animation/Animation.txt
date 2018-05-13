@@ -1,0 +1,62 @@
+
+
+view.startAnimation(animation);
+->animation.setStartTime(Animation.START_ON_FIRST_FRAME);  
+    setAnimation(animation);  
+    invalidateParentCaches();  
+    invalidate(true);  
+    会带用到invalidate(),触发View重新绘制过程	
+	if (p != null && ai != null) {  
+    final Rect r = ai.mTmpInvalRect;  
+    r.set(0, 0, mRight - mLeft, mBottom - mTop);  
+    // Don't call invalidate -- we don't want to internally scroll  
+    // our own bounds  
+    p.invalidateChild(this, r);  
+	迭代循环到ViewRootImp不断计算View，完成View绘制
+	
+ViewRootImpl.scheduleTraversals()
+->mChoreographer.postCallback(  
+                Choreographer.CALLBACK_TRAVERSAL, mTraversalRunnable, null);  
+  final TraversalRunnable mTraversalRunnable = new TraversalRunnable();  
+  final class TraversalRunnable implements Runnable {  
+    @Override  
+    public void run() {  
+        doTraversal();  
+    }  
+  }  
+ 
+ViewRootImpl.doTraversal()
+->performTraversals();  
+
+属性动画valueAnimator.start();
+->AnimationHandler animationHandler = getOrCreateAnimationHandler();
+  animationHandler.start();  
+  
+animationHandler.start()
+->scheduleAnimation();  
+   mChoreographer.postCallback(Choreographer.CALLBACK_ANIMATION, this, null);  
+   mAnimationScheduled = true;  
+   
+   
+View.onDraw()
+->Animation a = getAnimation();
+->applyLegacyAnimation()
+->调用Animation.initialize(int width, int height, int parentWidth, int parentHeight);
+  onAnimationStart();
+->applyTransformation()
+  float interpolatedTime, Transformation t
+  dx = mFromXDelta + ((mToXDelta - mFromXDelta) * interpolatedTime);
+  根据差值获取偏移， 
+  t.getMatrix().setTranslate(dx, dy);
+
+=================================动画执行的实际流程==================================================
+startAnimation()  
+->出发invalidate()
+->一直触发到顶层ViewRootImpl.performTraversals()->触发到ViewView.onDraw() 获取动画 getAnimation()
+->应用动画applyLegacyAnimation()->初始化动画Animation.initialize(int width, int height, int parentWidth, int parentHeight)
+->applyTransformation()，通过加速器计算差值，设置矩阵执行动画。
+  
+ViewRootImpl.performTraversals()
+->mTraversalScheduled = true;
+->mChoreographer.postCallback(Choreographer.CALLBACK_TRAVERSAL, mTraversalRunnable, null)等待Vsync信号到来时
+执行doTraversal()->scheduleTraversals()->onDraw(),刷新动画。

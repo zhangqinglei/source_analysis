@@ -1,0 +1,41 @@
+
+======================================Banner思想======================================================
+Banner 是借用ViewPager. 
+
+=====================================Banner.start()===================================================
+创建ImageView List
+->setImageList(imageUrls);
+  遍历图片文件列表， 创建ImageView，设置ImageView显示样式， 加入到图片列表中。
+设置到PageAdapter
+->setData();
+  adapter = new BannerPagerAdapter();
+  viewPager.addOnPageChangeListener(this);
+  viewPager.setAdapter(adapter);
+  viewPager.setFocusable(true);
+  viewPager.setCurrentItem(1);
+  
+开始播放
+ stopAutoPlay()
+ handler.postDelayed(task, delayTime);定时调用task
+ 计算下一条索引
+ currentItem = currentItem % (count + 1) + 1;
+ 如果是第一天就不滑动 fals 为设置smoothScroll
+ viewPager.setCurrentItem(currentItem, false);
+ handler.post(task);
+ 否则平滑滑动
+ viewPager.setCurrentItem(currentItem);
+ handler.postDelayed(task, delayTime);
+ 
+==================================initViewPagerScroll()==================================================
+通过反射获取ViewPager里的mScroller, 设置Scroller的滚动时间
+Field mField = ViewPager.class.getDeclaredField("mScroller");
+mField.setAccessible(true);
+mScroller = new BannerScroller(viewPager.getContext());
+mScroller.setDuration(scrollTime);
+mField.set(viewPager, mScroller);
+ 
+ 
+
+
+
+

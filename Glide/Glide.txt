@@ -272,9 +272,64 @@
     ->将Request保存到View中
 	
 10.    
+
+====================================GenericRequestBuilder=================================
+ModelType String
+DataType  ImageVideoWrapper
+ResourceType GifBitmapWrapper
+TranscodeType GlideDrawable
+
+loadProvider 是ChildLoadProvider， 封装了FixedLoadProvider。FixedLoadProvider封装了ImageVideoGifDrawableLoadProvider
+
+
+===========================================GlideDrawableImageViewTarget========================================
+GlideDrawableImageViewTarget继承ImageViewTarget， 继承泛型为GlideDrawable
+ImageViewTarget继承BaseTarget， BaseTarget继承Target， Target继承LifecycleListener Target定义了各种回调
+加载开始，加载准备，加载失败， 保存活获取Request, 
+->BaseTarget主要实现了Request的管理。
+  ->public void setRequest(Request request) {
+        this.request = request;
+    }
+
+    public Request getRequest() {
+        return request;
+    }
+
+->ViewTarget实现对View的管理，通过setRequest将Request保存到View的Tag中同时设置和获取View
+->ImageViewTarget实现对View的GlideDrawable的管理
+
    
+===========================================FixedLoadProvider=================================================================
+dataLoadProvider ImageVideoGifDrawableLoadProvider
+ImageVideoGifDrawableLoadProvider封装了ImageVideoDataLoadProvider， ImageVideoDataLoadProvider被封装到GifBitmapWrapperResourceDecoder
+中，FixedLoadProvider.getSourceDecoder.decode()调用ImageVideoGifDrawableLoadProvider的soureceDecoder (GifBitmapWrapperResourceDecoder)
+soureceDecoder.decode()通过调用ImageVideoDataLoadProvider中提供的sourceDecoder ImageVideoBitmapDecoder进行解析数据。
+modelLoader ImageVideoModelLoader
+transcoder GifBitmapWrapperDrawableTranscoder;
+
+
+=========================================================================================================================================
+decoded = loadProvider.getSourceDecoder().decode(data, width, height);
+
+ImageVideoGifDrawableLoadProvider获取GifBitmapWrapperResourceDecoder，GifBitmapWrapperResourceDecoder获取ImageVideoDataLoadProvider
+ImageVideoDataLoadProvider获取ImageVideoBitmapDecoder。ImageVideoBitmapDecoder获取StreamBitmapDecoder解析数据
+
+StreamBitmapDecoder中将InputSteam获取Bitmap, 封装成Resource<Bitmap>， GifBitmapWrapperResourceDecoder将Resource<Bitmap>
+封装到GifBitmapWrapper中。
+
+ Bitmap bitmap = downsampler.decode(source, bitmapPool, width, height, decodeFormat);
+        return BitmapResource.obtain(bitmap, bitmapPool);
+		
+		
+===========================================================StreamBitmapDecoder==============================================================
+->decode(InputStream source, int width, int height)
+  从读取刘里获取Bitmap
+  Bitmap bitmap = downsampler.decode(source, bitmapPool, width, height, decodeFormat);
+  把bitmap封装到BitmapResource中。
+  BitmapResource.obtain(bitmap, bitmapPool);
    
-   
+========================================================ImageVideoWrapper=====================================================================
+包裹InputSteam流和ParcelFileDescriptor文件描述符
    
    
    

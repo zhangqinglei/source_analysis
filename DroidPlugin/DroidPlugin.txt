@@ -34,6 +34,48 @@
   
 2. 加载插件
    ClassLoader classloader = new PluginClassLoader();
+   
+   
+   
+--------------------------------------------------------------------------------------------------------
+IActivityManagerHook类继承ProxyHook类
+ProxyHook继承Hook和InvocationHandler
+IActivityManagerHook继承ProxyHook, 
+->createHookHandle()
+  IActivityManagerHook重写Hook类中的createHookHandle()方法。
+  return new IActivityManagerHookHandle(mHostContext);   
+  保存到Hook中的mHookHandles中
+  
+  
+IActivityManagerHookHandle类继承BaseHookHandle
+->构造函数会通过父类的构造函数调用到init()方法。
+
+IActivityManagerHookHandle.init()方法
+->注册IActivityManager中的方法到sHookedMethodHandlers中
+  sHookedMethodHandlers.put("startActivity", new startActivity(mHostContext));
+  sHookedMethodHandlers.put("startActivityAsUser", new startActivityAsUser(mHostContext));
+  
+invoke()
+->当IactivtyManager.调用实际方法时，根据methdo找到HookedMethodHandler对象hookedMethodHandler
+  HookedMethodHandler hookedMethodHandler = mHookHandles.getHookedMethodHandler(method);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	 
 	 
 

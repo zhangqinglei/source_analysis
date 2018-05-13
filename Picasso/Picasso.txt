@@ -271,6 +271,79 @@
    加载的时候如果检测到有图片Builder.setPlaceholder. 直接设置ImageView drawable  
    (ImageView)target.setImageDrawable(placeholderDrawable);
    
+
+----------------------------------------------------------------------------------------------------------   
+   
+Picasso.builder()
+ ->构造Dispatcher，RequestHandler。和Downloader对象downloader, 实际是创建的UrlConnectionDownloader
+   downloader被封装到Dispatcher中。
+
+RequestCreator.into()
+->获取Request request = createRequest(started);
+->如果不成缓冲获取Bitmap, 创建ImageViewAction， 将Picasso,ImageView等封装到ImageView中 
+  Action action = new ImageViewAction(picasso, target, request, memoryPolicy, networkPolicy, errorResId,
+            errorDrawable, requestKey, tag, callback, noFade);   
+			
+->提交请求
+  picasso.enqueueAndSubmit(action);
+  
+Picasso.enqueueAndSubmit(Action action)
+->submit(action);
+  dispatcher.dispatchSubmit(action);
+  通过Dispatcher提交ImageViewAction
+  通过Hnadler走到dispatcher.performSubmit(action); 
+  
+Dispatcher.performSubmit(Action action, boolean dismissFailed)
+->hunter = forRequest(action.getPicasso(), this, cache, stats, action);
+->提交到线程池里执行
+  hunter.future = service.submit(hunter);
+BitmapHunter.forRequest()
+->创建BitmapHunter, 重Picasso中获取RequestHandler list, 将picasso,requestHandelr,
+  dispatcher, action等封装到BitmapHunter
+  return new BitmapHunter(picasso, dispatcher, cache, stats, action, requestHandler);
+  
+BitmapHunter.run()
+->获取Bitmap对象result
+result = hunt();
+
+BimtmapHunter.hunt()
+->获取result, 通过NetworkRequestHandler获取
+  RequestHandler.Result result = requestHandler.load(data, networkPolicy);
+->从result中获取InputStream is
+  InputStream is = result.getStream();
+->通过is解析Bitmap
+  bitmap = decodeStream(is, data);
+->获取Bitmap返回
+  dispatcher.dispatchComplete(this);
+  从ImageViewAction中取出ImageView,设置Bitmap。
+  
+  
+BitmapHuter.decodeStream(InputStream stream, Request request)
+->通过BitmapFactory获取Bitmap
+  BitmapFactory.decodeStream(stream, null, options);
+  
+NetworkRequestHandler.load(Request request, int networkPolicy)
+->通过UrlConnectionDownloader.load()获取Response
+  从Response中获取InputStream
+  InputStream is = response.getInputStream();
+  将InputStream封装到Result中
+  return new Result(is, loadedFrom);
+
+UrlConnectionDownloader.load()
+->创建UrlConnection连接
+  HttpURLConnection connection = openConnection(uri);
+  connection.setUseCaches(true);
+->将InputStream封装到Response中
+  return new Response(connection.getInputStream(), fromCache, contentLength);
+  
+  
+RequestCreator调用Picasso,Picasso调动Dispatcher.submit(Action),Dispatcher中创建
+BitmapHunter对象hunter,将hunter提交到线程池中。hunter的run()方法调用hunt()方法,返回
+Bitmap, hunte()方法，调用NetworkRequestHandler，通过UrlConnectionDownloader创建UrlConnection连接，
+封装InputStream到Response中，hunt()方法中从response中获取InputStream，对象，通过BitmapFactoy.decodeStream()
+获取Bitmap。
+  
+   
    
    
    

@@ -1,0 +1,69 @@
+
+RxBus构造函数初始化
+this.finder = finder;
+
+
+RxBus.register(Object object)
+->查找订阅者
+ Map<EventType, Set<SubscriberEvent>> foundSubscribersMap = finder.findAllSubscribers(object);
+ 
+ 
+Finder.findAllSubscribers(Object listener)
+->AnnotatedFinder.findAllSubscribers(listener);
+
+AnnotatedFinder.findAllSubscribers(Object listener)
+->获取Class
+  Class<?> listenerClass = listener.getClass();
+  Map<EventType, Set<SubscriberEvent>> subscribersInMethod = new HashMap<>();
+->Map<EventType, Set<SourceMethod>> methods = SUBSCRIBERS_CACHE.get(listenerClass);
+  class作为关键之获取里面注册的方法，如果methods为空，查找订阅方法
+  methods = new HashMap<>();
+  loadAnnotatedSubscriberMethods(listenerClass, methods);
+  
+  
+  
+AnnotatedFinder.loadAnnotatedSubscriberMethods(Class<?> listenerClass, Map<EventType, Set<SourceMethod>> subscriberMethods)
+->创建subscriberMethods
+ Map<EventType, SourceMethod> producerMethods = new HashMap<>();
+ loadAnnotatedMethods(listenerClass, producerMethods, subscriberMethods);
+->从subscriberMethods获取SourceMethod, 获取Method method和EventThread thread封装到SubscriberEvent中, 
+->subscribers.add(new SubscriberEvent(listener, m.method, m.thread));
+->将subscribers保存到subscribersInMethod中
+  subscribersInMethod.put(e.getKey(), subscribers);
+  
+ 
+
+ 
+AnnotatedFinder.loadAnnotatedMethods()
+->获取Subscribe声明, 线程类型和Tag
+  Subscribe annotation = method.getAnnotation(Subscribe.class);
+  EventThread thread = annotation.thread();SUBSCRIBERS_CACHE.put(listenerClass, subscriberMethods);
+  Tag[] tags = annotation.tags();
+->根据Tag生成EventType
+  EventType type = new EventType(tag, parameterClazz);
+  根据EventTyep作为Key值， 将methods添加进subscriberMethods, methods是HashMap对象
+  methods = new HashSet<>();
+  subscriberMethods.put(type, methods);
+->methods添加SourceMethod对象。根据EnventType从Map对象subscriberMethods找到methods， 从Set对象methods中找到SourceMethod
+  methods.add(new SourceMethod(thread, method));
+  将subscriberMethods保存到SUBSCRIBERS_CACHE
+  SUBSCRIBERS_CACHE.put(listenerClass, subscriberMethods);
+  
+Bus.post()
+->根据Tag和Event的class创建EventType. 根据EventType获取Set<SubscriberEvent> wrappers
+->dispatch(event, wrapper);
+
+Bus.dispatch(Object event, SubscriberEvent wrapper)
+->wrapper.handle(event);
+->通过RxJava调用反射，调用Object中的方法。
+  subject.onNext(event);
+  handleEvent(event);
+  method.invoke(target, event);
+  
+  
+EventType是由参数Tag和函数的参数类型决定的
+SourceMethod包含线程类型thread和接口method对象。Set<SourceMethod>以EventType为key保存到
+ Map<EventType, Set<SourceMethod>> subscriberMethods map 中。
+ SUBSCRIBERS_CACHE以 listenerClass为Key保存subscriberMethods
+ 
+ 根据Post() 根据post参数和tag创建EventType 根据EventType 获取Set<SubscriberEvent>， 

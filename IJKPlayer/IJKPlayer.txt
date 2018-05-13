@@ -1,0 +1,75 @@
+
+================================SufaceView初始化========================================
+IjkVideoView构造函数
+->initRenders();初始化SurfaceView 
+  SurfaceRenderView renderView = new SurfaceRenderView(getContext());
+  setRenderView(renderView);
+  SurfaceRenderView renderView = new SurfaceRenderView(getContext());
+  ->setRenderView(renderView);
+  ->移除MediaPlayer中的View
+  ->修改SurfaceView的布局
+    View renderUIView = mRenderView.getView();
+    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+    FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
+    renderUIView.setLayoutParams(lp);
+    addView(renderUIView);
+	mRenderView.addRenderCallback(mSHCallback);
+	mSHCallback是重写的IRenderView.IRenderCallback对象
+  
+=====================================SurfaceRenderView==================================
+继承SurfaceView和IRenderView
+private SurfaceCallback mSurfaceCallback, SurfaceCallback继承SurfaceHolder.Callback
+initView()
+->mMeasureHelper = new MeasureHelper(this);
+  mSurfaceCallback = new SurfaceCallback(this);
+  getHolder().addCallback(mSurfaceCallback);     
+  getHolder().setType(SurfaceHolder.SURFACE_TYPE_NORMAL);
+ 
+
+=========================================================================================
+IJKPlayer.openVideo()
+->创建播放器AndroidMediaPlayer
+  mMediaPlayer = createPlayer(mSettings.getPlayer());
+->
+  
+===========================mSHCallback===================================================
+onSurfaceCreated()
+->获取SurfaceHolder
+  mSurfaceHolder = holder
+  bindSurfaceHolder(mMediaPlayer, holder);
+->holder.bindToMediaPlayer(mp);
+  给MediaPlauer设置SurfaceHolder
+  mp.setDisplay(mSurfaceHolder);
+  mInternalMediaPlayer.setDisplay(sh);
+  
+  
+=============================================================================================
+IjkVideoView构造函数->创建SurfaceRenderView SurfaceRenderView renderView = new SurfaceRenderView(getContext());
+SurfaceRenderView 构造函数创建SurfaceHolder.Callback mSurfaceCallback = new SurfaceCallback(this);添加
+getHolder().addCallback(mSurfaceCallback);->setRenderView(renderView)->mRenderView.addRenderCallback(mSHCallback);
+->mSurfaceCallback.addRenderCallback(callback)
+开始创建SurfaceView
+surfaceCreated()->IjkVideoViewsurfaceCreated()->将MeidaPlayer与Holder捆绑到一起bindSurfaceHolder(mMediaPlayer, holder);
+->holder.bindToMediaPlayer(mp)->mp.setDisplay(mSurfaceHolder);
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

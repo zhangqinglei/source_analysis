@@ -86,11 +86,17 @@
     ->	
    
    
+重写ClassLoader.findClass()方法
+Class<?> clazz = dexFile.loadClass(className, this); 
+在里面实际有DexFile.loadClass()加载实际的Class;
+
 
  
 
 
-
+name       /storage/emulated/0/sport/video_buffer/20180508_121855.mp4
+ppfeature  1280182_657941fa1d5b6b1cc4466f1423d98df0441f5576
+length     1280182
 
 
 

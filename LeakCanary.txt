@@ -1,0 +1,34 @@
+
+
+==================================================RefWatcher.watch()====================================================
+->创建KeyedWeakReference， 添加到ReferenceQueue 队列中
+KeyedWeakReference reference = new KeyedWeakReference(watchedReference, key, referenceName, this.queue);
+开启异步线程执行对象回收
+RefWatcher.this.ensureGone(reference, watchStartNanoTime);
+
+=================================================RefWatcher.ensureGone()================================================
+
+检测流程
+1） 移除不可达引用，如果当前引用不存在了，则不继续执行
+
+2） 手动触发GC操作，gcTrigger中封装了gc操作的代码 
+
+3） 再次移除不可达引用，如果引用不存在了，则不继续执行
+
+4） 如果两次判定都没有被回收，则开始分析这个引用，最终生成HeapDump信息
+
+生成HeapDump文件
+File heapDumpFile = this.heapDumper.dumpHeap();
+调用泄露日志分析文件
+heapdumpListener.analyze(new HeapDump(heapDumpFile, reference.key, reference.name, this.excludedRefs, watchDurationMs, gcDurationMs, heapDumpDurationMs));
+
+异步分析在IntentService中添加。
+
+============================================HeapAnalyzer.checkForLeak()==================================================
+AnalysisResult checkForLeak(File heapDumpFile, String referenceKey)
+分析泄露文件， 生成泄露信息
+HprofBuffer buffer = new MemoryMappedFileBuffer(heapDumpFile);
+HprofParser parser = new HprofParser(buffer);
+Snapshot snapshot = parser.parse();
+this.deduplicateGcRoots(snapshot);
+Instance leakingRef = this.findLeakingReference(referenceKey, snapshot);

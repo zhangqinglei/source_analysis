@@ -1,0 +1,84 @@
+
+
+Choreographer.getInstance()
+ ->return sThreadInstance.get(); 
+   Looper looper = Looper.myLooper();  
+   return new Choreographer(looper);
+   
+Choreographer构造函数
+-> mLooper = looper;  
+   //创建消息处理Handler  
+   mHandler = new FrameHandler(looper);  
+   //如果系统使用了Vsync机制，则注册一个FrameDisplayEventReceiver接收器  
+   mDisplayEventReceiver = USE_VSYNC ? new FrameDisplayEventReceiver(looper) : null;  
+   mLastFrameTimeNanos = Long.MIN_VALUE;  
+   //屏幕刷新周期  
+   mFrameIntervalNanos = (long)(1000000000 /  
+            new Display(Display.DEFAULT_DISPLAY, null).getRefreshRate());  
+   //创建回调数组  
+   mCallbackQueues = new CallbackQueue[CALLBACK_LAST + 1];  
+   //初始化数组  
+   for (int i = 0; i <= CALLBACK_LAST; i++) {  
+        mCallbackQueues[i] = new CallbackQueue();  
+   }  
+   mCallbackQueues的大小为3
+   
+Choreographer.postCallback(int callbackType, Runnable action, Object token)
+->获取要执行的时间，将Runnable action添加到mCallbackQueues中
+  mCallbackQueues[callbackType].addCallbackLocked(dueTime, action, token);
+  //函数执行时间到  
+  if (dueTime <= now) {  
+	scheduleFrameLocked(now);  
+  } else {//通过异步消息方式实现函数延时执行  
+	Message msg = mHandler.obtainMessage(MSG_DO_SCHEDULE_CALLBACK, action);  
+    msg.arg1 = callbackType;  
+    msg.setAsynchronous(true);  
+    mHandler.sendMessageAtTime(msg, dueTime);  
+  }  
+  如果执行时间到了，直接调用scheduleFrameLocked() 否则通过Handler根据时间执行事件。
+  handler会调用到doScheduleCallback(msg.arg1);  
+  
+Choreographer.doScheduleCallback()
+->scheduleFrameLocked(now);
+
+Choreographer.scheduleFrameLocked(long now)
+->如果使用VSYNC
+  scheduleVsyncLocked();
+  如果系统没有使用VSync机制，则使用异步消息延时执行屏幕刷新
+  final long nextFrameTime = Math.max(  
+                    mLastFrameTimeNanos / NANOS_PER_MS + sFrameDelay, now);  
+            Message msg = mHandler.obtainMessage(MSG_DO_FRAME);  
+            msg.setAsynchronous(true);  
+            mHandler.sendMessageAtTime(msg, nextFrameTime);
+
+
+Choreographer.onVsync()
+当VSYNC信号到达时，Choreographer doFrame()函数被调用	
+->doFrame()
+
+Choreographer.doFrame()
+->//分别回调CALLBACK_INPUT、CALLBACK_ANIMATION、CALLBACK_TRAVERSAL事件  
+    doCallbacks(Choreographer.CALLBACK_INPUT, frameTimeNanos);  
+    doCallbacks(Choreographer.CALLBACK_ANIMATION, frameTimeNanos);  
+    doCallbacks(Choreographer.CALLBACK_TRAVERSAL, frameTimeNanos);  
+
+Choreographer.doCallbacks()
+->//从指定类型的CallbackQueue队列中查找执行时间到的CallbackRecord  
+  callbacks = mCallbackQueues[callbackType].extractDueCallbacksLocked(now);  
+  //由于CallbackQueues是按时间先后顺序排序的，因此遍历执行所有时间到的CallbackRecord  
+        for (CallbackRecord c = callbacks; c != null; c = c.next) {  
+            c.run(frameTimeNanos);  
+        }  
+		
+在Choreographer构造函数中，构造了一个FrameDisplayEventReceiver对象，用于请求并接收Vsync信号，Vsync信号请求过程如下：
+private void scheduleVsyncLocked() {  
+    //申请Vsync信号  
+    mDisplayEventReceiver.scheduleVsync();  
+} 
+
+
+		
+ 
+  
+  
+  

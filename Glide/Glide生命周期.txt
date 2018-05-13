@@ -1,0 +1,239 @@
+
+
+===============================================Glide.with()=============================================
+RequestManagerRetriever retriever = RequestManagerRetriever.get();
+构造函数中创建Handelr
+handler = new Handler(Looper.getMainLooper(), this /* Callback */);
+
+===========================================RequestManagerRetriever.get()================================
+->判断Context类型
+->获取FragmentManager
+  FragmentManager fm = activity.getSupportFragmentManager();
+->创建SupportRequestManagerFragment添加到Activity中， SupportRequestManagerFragment提供生命周期的管理
+  由Fragment的生命周期回调ActivityFragmentLifecycle的回调函数
+  current = new SupportRequestManagerFragment(); 
+  fm.beginTransaction().add(current, FRAGMENT_TAG).commitAllowingStateLoss();
+  
+  
+  
+如果Context 是Application直接回调ApplicationLifecycle, 否则创建Fragment添加到Acrtivity中。 通过Frafgment回到
+生命周期。
+
+
+Glide的内存最大是系统内存的低内存是最大内存的0.33倍，高为0.4倍
+
+memoryCacheSize为屏幕尺寸大小的2倍RGBA8888
+bitmapPoolSize为屏幕尺寸大小的4倍RGBA8888
+
+BitmapPool 是LruBitmapPool
+MemoryCache是LruResourceCache
+DiskCache.Factory是InternalCacheDiskCacheFactory
+cacheDir是应用的内存目录
+File cacheDirectory = context.getCacheDir();
+Engine封装了的内存缓存，磁盘缓存，和调度线程
+engine = new Engine(memoryCache, diskCacheFactory, diskCacheService, sourceService);
+
+=================================================DataLoadProvider===================================================
+->ResourceDecoder<File, Z> getCacheDecoder();
+  把应用缓存中的资源转换成相应的资源
+->ResourceDecoder<T, Z> getSourceDecoder();
+  把原始资源转化成Resource。
+->Encoder<T> getSourceEncoder();
+  把转化好的资源保存到磁盘中
+->ResourceEncoder<Z> getEncoder();
+  把转化好的资源包装到Resource类中。
+  
+  
+ 所有Encoder都继承Encoder接口，重写encode方法
+ 所有Decoder都继承ResourceDecoder<T, Z>
+ T是将要转化的类型， T是被转换成的类型。转化成Resource<T>
+==========================================StreamEncoder==============================================================
+把InputStream数据通过OutputStream 写入到文件中。
+encode(InputStream data, OutputStream os)
+->os.write(buffer, 0, read);
+
+=========================================BitmapEncoder===============================================================
+从Resource<Bitmap>中获取Bitmap， 将Bitmap转化为其他质量Bitmap
+-> final Bitmap bitmap = resource.get();
+   Bitmap.CompressFormat format = getFormat(bitmap);
+   bitmap.compress(format, quality, os
+   
+=========================================StreamBitmapDecoder==========================================================
+decode(InputStream source, int width, int height)
+->Bitmap bitmap = downsampler.decode(source, bitmapPool, width, height, decodeFormat);
+  根据 InputStream获取Bitmap
+  return BitmapResource.obtain(bitmap, bitmapPool);
+  将bitmap封装成BitmapResource， BitmapResource继承Resource<Bitmap>
+  
+===========================================FileToStreamDecoder=========================================================
+Resource<Btimap> decode(File source, int width, int height)
+将File文件转化为Resource<Bitmap>
+->InputStream is = null;
+  Resource<T> result = null;
+  is = fileOpener.open(source);
+  获取文件流，
+  result = streamDecoder.decode(is, width, height);
+  通过StreamBitmapDecoder的decode接口生成BitmapResource。
+  
+===========================================ImageVideoWrapperEncoder=====================================================
+ImageVideoWrapperEncoder(Encoder<InputStream> streamEncoder,
+            Encoder<ParcelFileDescriptor> fileDescriptorEncoder) 
+streamEncoder是StreamBitmapDecoder
+fileDescriptorEncoder是FileDescriptorBitmapDecoder
+
+encode(ImageVideoWrapper data, OutputStream os) 
+->获取ImageVideoWrapper中包装的类型数据类型。调用OutputStream
+  if (data.getStream() != null) {
+       return streamEncoder.encode(data.getStream(), os);
+  } else {
+       return fileDescriptorEncoder.encode(data.getFileDescriptor(), os);
+  }
+  
+==============================================ImageVideoBitmapDecoder===================================================
+构造函数
+->this.streamDecoder = streamDecoder;  StreamBitmapDecoder类型
+  this.fileDescriptorDecoder = fileDescriptorDecoder; FileDescriptorBitmapDecoder类型。
+->Resource<Bitmap> decode(ImageVideoWrapper source, int width, int height)
+  根据ImageVideoWrapper包装的类型来调用是否streamDecoder.decode(is, width, height)或者
+  ileDescriptorDecoder.decode(fileDescriptor, width, height);
+  
+===========================================GifBitmapWrapperResourceDecoder==============================================
+构造函数
+this.bitmapDecoder = bitmapDecoder; ImageVideoBitmapDecoder
+this.gifDecoder = gifDecoder;
+this.bitmapPool = bitmapPool;
+this.parser = parser;
+this.streamFactory = streamFactory;
+
+Resource<GifBitmapWrapper> decode(ImageVideoWrapper source, int width, int height)
+->GifBitmapWrapper是包装Resource<Bitmap> bitmapResource和Resource<GifDrawable> gifResource
+  ImageVideoWrapper包含InputStream和ParcelFileDescriptor
+  wrapper = decode(source, width, height, tempBytes);
+  将GifBitmapWrapper封装到GifBitmapWrapperResource(wrapper)
+->GifBitmapWrapper decode(ImageVideoWrapper source, int width, int height, byte[] bytes
+  result = decodeStream(source, width, height, bytes);
+  GifBitmapWrapper decodeStream(ImageVideoWrapper source, int width, int height, byte[] bytes)
+  InputStream bis = streamFactory.build(source.getStream(), bytes);
+  GifBitmapWrapper decodeBitmapWrapper(ImageVideoWrapper toDecode, int width, int height)
+  调用ImageVideoBitmapDecoder的decode()方法
+  Resource<Bitmap> bitmapResource = bitmapDecoder.decode(toDecode, width, height);
+  包装到GifBitmapWrapper中 new GifBitmapWrapper(bitmapResource, null);
+  
+实际功能是创建Resource<Bitmap>封装到GifBitampWrapper.再将GifBitmapWrapper封装成Resource<GifBitmapWrapper>
+ 
+  
+============================================StreamBitmapDataLoadProvider================================================
+sourceEncoder = new StreamEncoder();
+decoder = new StreamBitmapDecoder(bitmapPool, decodeFormat);
+encoder = new BitmapEncoder();
+cacheDecoder = new FileToStreamDecoder<Bitmap>(decoder);
+
+========================================ImageVideoDataLoadProvider======================================================
+ImageVideoDataLoadProvider(DataLoadProvider<InputStream, Bitmap> streamBitmapProvider,
+            DataLoadProvider<ParcelFileDescriptor, Bitmap> fileDescriptorBitmapProvider)
+encoder = streamBitmapProvider.getEncoder(); BitmapEncoder
+sourceEncoder = new ImageVideoWrapperEncoder(streamBitmapProvider.getSourceEncoder(),
+                fileDescriptorBitmapProvider.getSourceEncoder());
+cacheDecoder = streamBitmapProvider.getCacheDecoder();	FileToStreamDecoder
+sourceDecoder =  = new ImageVideoBitmapDecoder(streamBitmapProvider.getSourceDecoder(),
+                fileDescriptorBitmapProvider.getSourceDecoder());
+				
+
+==========================================ImageVideoGifDrawableLoadProvider=============================================
+构造函数GifBitmapWrapperResourceDecoder decoder = new GifBitmapWrapperResourceDecoder(
+                bitmapProvider.getSourceDecoder(), gifProvider.getSourceDecoder(), bitmapPool);
+				
+				
+=============================================ModelLoaderFactory<T, Y>===================================================
+T是要创建类型的ModuleLoader, Y 是初始数据类型
+所有的ModelLoader都要在ModelLoaderFactory子类中创建
+ModelLoader<T, Y> build(Context context, GenericLoaderFactory factories);
+
+==========================================ModelLoader<T, Y>=============================================================
+DataFetcher<Y> getResourceFetcher(T model, int width, int height);
+所有的ModelLoader都要重写getResourceFetcher接口
+DataFetcher 提供loadData接口
+
+================================================HttpUrlFetcher===========================================================
+InputStream loadData(Priority priority)通过URL获取InputStream
+
+===============================================HttpUrlGlideUrlLoader=====================================================
+getResourceFetcher()
+获取HttpUrlFetcher
+==============================================StreamUrlLoader============================================================
+继承UrlLoader。 够着函数中创建HttpUrlGlideUrlLoader
+->getResourceFetcher()通过HttpUrlGlideUrlLoader获取DataFetcher。 
+  return glideUrlLoader.getResourceFetcher(new GlideUrl(model), width, height);
+  
+==================================================ResourceTranscoder<Z, R>===============================================
+所有的Transcoder都要继承ResourceTranscoder，重写 transcode(Resource<Z> toTranscode)
+Z是将要被转化的资源
+R是被转化的资源
+
+==============================================GlideBitmapDrawableTranscoder==============================================
+Resource<GlideBitmapDrawable> transcode(Resource<Bitmap> toTranscode)把Rresource<Bitmap>转化成GlideBitmapDrawable在
+封装到 GlideBitmapDrawableResource  new GlideBitmapDrawableResource(drawable, bitmapPool);
+
+==============================================GifBitmapWrapperDrawableTranscoder=========================================
+Resource<GlideDrawable> transcode(Resource<GifBitmapWrapper> toTranscode)
+->GifBitmapWrapper gifBitmap = toTranscode.get();
+  获取GifBitmapWrapper
+  Resource<Bitmap> bitmapResource = gifBitmap.getBitmapResource();
+  从GifBitmapWrapper获取Resource<Bitmap> 
+  调用GlideBitmapDrawableTranscoder 的transcode接口获取Resource<GlideBitmapDrawable>
+  result = bitmapDrawableResourceTranscoder.transcode(bitmapResource);
+		
+		
+================================================Transformation===========================================================
+所有的Transformation都要重写transform()接口		
+Resource<T> transform(Resource<T> resource, int outWidth, int outHeight);
+
+================================================BitmapTransformation=====================================================
+Resource<Bitmap> transform(Resource<Bitmap> resource, int outWidth, int outHeight)
+->获取Bitmap
+  Bitmap toTransform = resource.get();
+  Bitmap transformed = transform(bitmapPool, toTransform, targetWidth, targetHeight);
+  调用具体子类实现的transform接口。
+  CenterCrop和FitCenter
+  
+===============================================GifBitmapWrapperTransformation============================================
+Resource<GifBitmapWrapper> transform(Resource<GifBitmapWrapper> resource, int outWidth, int outHeight)
+
+->获取Resouce<Btimap> 
+  Resource<Bitmap> bitmapResource = resource.get().getBitmapResource();
+  resource.get()获取GifBitmapWrapper
+  GifBitmapWrapper.getBitmapResource()获取Resouce<Btimap>
+  Resource<Bitmap> transformed = bitmapTransformation.transform(bitmapResource, outWidth, outHeight);
+  bitmapTransformation是CenterCrop和FitCenterh
+  
+GifBitmapWrapperTransformation包装了CenterCrop或者FitCenterh
+  
+==============================================CenterCrop==================================================================
+Bitmap transformed = TransformationUtils.centerCrop(toReuse, toTransform, outWidth, outHeight);
+调用TransformationUtils完成图片的压缩转换。
+
+
+Glide执行流程
+活ModelLoader 封装到DrawableTypeRequest中。
+->into创建Request。 执行Request
+
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

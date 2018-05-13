@@ -134,6 +134,50 @@
     
 	CallServerInterceptor负责向服务器发起真正的访问请求，并在接收到服务器返回后读取响应返回
 	
+	
+	
+============================================================================================================
+CallServerInterceptor类
+->intercept(Chain chain)
+  ->HttpCodec httpCodec = ((RealInterceptorChain) chain).httpStream();
+    创建HttpCodec对象httpCodec
+    StreamAllocation streamAllocation = ((RealInterceptorChain) chain).streamAllocation();
+    Request request = chain.request();
+->httpCodec.writeRequestHeaders(request);
+  想后台写入http头部
+->httpCodec.finishRequest();
+  Sink向后台刷入缓存
+  
+->responseBuilder = httpCodec.readResponseHeaders(false);
+  获取响应头部 
+  Response response = responseBuilder
+        .request(request)
+        .handshake(streamAllocation.connection().handshake())
+        .sentRequestAtMillis(sentRequestMillis)
+        .receivedResponseAtMillis(System.currentTimeMillis())
+        .build();
+  获取响应数据
+  
+->response = response.newBuilder()
+          .body(httpCodec.openResponseBody(response))
+          .build();
+  获取响应Body
+  httpCodec.openResponseBody(response)
+  
+Http1Codec.openResponseBody(Response response)
+->Source source = getTransferStream(response);
+  return newChunkedSource(response.request().url());
+  创建ChunkedSource(url)实例
+->new RealResponseBody(response.headers(), Okio.buffer(source));
+  将Source封装到中
+  
+ResponseBody.string()
+->BufferedSource source = source();
+  获取ChunkedSource
+->return source.readString(charset);
+  通过Source读取数据
+  
+  
    
    
    

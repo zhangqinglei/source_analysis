@@ -1,0 +1,95 @@
+
+
+============================================PluginManager=======================================
+prepare()方法
+->Hook Instrumentation和Handler
+  hookInstrumentationAndHandler()
+  Hook Service
+  hookSystemServices()
+  
+->hookInstrumentationAndHandler()
+  通过反射的方式在在ActivityThread中获取
+  在ActivityThread中获取静态变量sCurrentActivityThread
+  通过反射的方式在ActivityThread中获取Instrumentation
+  sInstrumentation = (Instrumentation) ReflectUtil.invoke(
+                        sActivityThread.getClass(), sActivityThread, "getInstrumentation");
+						
+ 把sInstrumentation封装到VAInstrumentation中 VAInstrumentation继承Instrumentation 和Handler.Callback
+ VAInstrumentation instrumentation = new VAInstrumentation(this, baseInstrumentation);
+ ->把VAInstrumentation设置到ActivityThread 中
+   ReflectUtil.setInstrumentation(activityThread, instrumentation);
+ ->把VAInstrumentation设置到ActivityThread,Handler中
+   Handler mainHandler = (Handler) ReflectUtil.invoke(activityThread.getClass(), activityThread, "getHandler", (Object[])null);
+   ReflectUtil.setField(Handler.class, mainHandler, "mCallback", callback);
+   
+   
+================================================VAInstrumentation==================================
+realExecStartActivity()
+->通过反射调用Instrumentation.realExecStartActivity()方法
+   Class[] parameterTypes = {Context.class, IBinder.class, IBinder.class, Activity.class, Intent.class,
+            int.class, Bundle.class};
+   result = (ActivityResult)ReflectUtil.invoke(Instrumentation.class, mBase,
+            "execStartActivity", parameterTypes, who, contextThread, token, target, intent, requestCode, options);
+			
+->newActivity()
+  获取插件， 
+  LoadedPlugin plugin = this.mPluginManager.getLoadedPlugin(intent);
+  通过Instrumentation生成Activity, ClassLoader是插件中的ClassLoader。
+  Activity activity = mBase.newActivity(plugin.getClassLoader(), targetClassName, intent);
+
+->callActivityOnCreate()
+  把插件中的资源设置到现在的资源中Acrtivity
+  LoadedPlugin plugin = this.mPluginManager.getLoadedPlugin(intent);
+  ReflectUtil.setField(base.getClass(), base, "mResources", plugin.getResources());
+  ReflectUtil.setField(ContextWrapper.class, activity, "mBase", plugin.getPluginContext());
+  ReflectUtil.setField(Activity.class, activity, "mApplication", plugin.getApplication());
+  ReflectUtil.setFieldNoException(ContextThemeWrapper.class, activity, "mBase", plugin.getPluginContext());
+  
+->handleMessage()
+  获取Intent, 从Intent中获取是否插件中的Intent
+  intent.getBooleanExtra(Constants.KEY_IS_PLUGIN, false);
+  
+============================================插件加载==================================================
+->加载插件
+  File apk = new File(getExternalStorageDirectory(), "plugin.apk");
+  pluginManager.loadPlugin(apk);
+  
+->loadPlugin(File apk)
+  生成插件
+  LoadedPlugin plugin = LoadedPlugin.create(this, this.mContext, apk);
+  return new LoadedPlugin(pluginManager, host, apk);
+  plugin.invokeApplication();
+  生成插件的应用Application
+  mApplication = makeApplication(false, mPluginManager.getInstrumentation());
+  this.mApplication = instrumentation.newApplication(this.mClassLoader, appClass, this.getPluginContext());
+  回调Application.onCreate()
+  instrumentation.callApplicationOnCreate(this.mApplication);
+  
+===============================================LoadedPlugin============================================
+->构造函数
+  创建插件的ClassLoader
+  this.mClassLoader = createClassLoader(context, apk, this.mNativeLibDir, context.getClassLoader());
+  获取dex的路径， 设置到DexClassLoader
+  File dexOutputDir = context.getDir(Constants.OPTIMIZE_DIR, Context.MODE_PRIVATE);
+        String dexOutputPath = dexOutputDir.getAbsolutePath();
+        DexClassLoader loader = new DexClassLoader(apk.getAbsolutePath(), dexOutputPath, libsDir.getAbsolutePath(), parent);
+  把应用和差价的dex插入到一起
+  DexUtil.insertDex(loader);
+  Object baseDexElements = getDexElements(getPathList(getPathClassLoader()));
+  Object newDexElements = getDexElements(getPathList(dexClassLoader));
+  Object allDexElements = combineArray(baseDexElements, newDexElements);
+  Object pathList = getPathList(getPathClassLoader());
+  通过反射把合并的dexElements设置到dexElements中。
+  ReflectUtil.setField(pathList.getClass(), pathList, "dexElements", allDexElements);
+  
+  
+PluginManager在构造函数时候初始化VAInstrumentation, hookSystemServices；
+  
+原理获取ActivityThread里的Instrumentation和 Handler中的Callback, 封装到VAInstrumentation
+把VAInstrumentation设置到ActivityThread和Handler中。VAInstrumentation继承Instrumentation和
+Handler.Callback。 通过反射调用Instrumentation和Handler.Callback。ClassLoader是插件的ClassLoader
+
+  
+  
+    
+					

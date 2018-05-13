@@ -1,0 +1,56 @@
+
+
+=============================================BlockCanary的思想================================================
+BlockCanary的思想是在Main Looper里添加自定义Printer，重写Printer的println()接口。在Looper的loop()方法
+里调用Printer.println()接口。 在重写的println()里统计耗时时间。确定卡顿。
+
+
+=========================================BlockCanary.start()==================================================
+->获取MainLooper 设置printer
+  Looper.getMainLooper().setMessageLogging(mBlockCanaryCore.monitor); 
+  
+  
+=========================================LooperMonitor========================================================
+LooperMonitor继承Printer类
+mBlockListener = blockListener; 卡顿监听器
+mBlockThresholdMillis = blockThresholdMillis;
+mStopWhenDebugging = stopWhenDebugging;
+
+========================================LooperMonitor.println()===============================================
+如果Looper调用打印结束时间 endTime - mStartTimestamp > mBlockThresholdMillis调用卡顿回调。
+->if (isBlock(endTime)) {
+	notifyBlockEvent(endTime);
+  }
+
+=========================================LooperMonitor.notifyBlockEvent()=====================================
+获取写日志子线程的Handler,调用Handelr的post()接口把卡顿日志写到回调中。
+HandlerThreadFactory.getWriteLogThreadHandler().post(new Runnable() {
+            @Override
+            public void run() {
+                mBlockListener.onBlockEvent(startTime, endTime, startThreadTime, endThreadTime);
+            }
+});
+
+=======================================StackSampler类==========================================================
+构造函数StackSampler
+mCurrentThread = thread; 从MainLooper中获取的主线程。
+mMaxEntryCount = maxEntryCount;
+
+
+========================================CpuSampler类===========================================================
+用于获取CPU的信息
+
+
+
+=======================================LooperMonitor.BlockListener=============================================
+当发生卡顿时会回调onBlockEvent()方法
+onBlockEvent(long realTimeStart, long realTimeEnd,long threadTimeStart, long threadTimeEnd)
+设置线程堆栈信息
+ArrayList<String> threadStackEntries = stackSampler
+                        .getThreadStackEntries(realTimeStart, realTimeEnd);
+
+
+
+
+
+

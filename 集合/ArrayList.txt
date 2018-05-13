@@ -1,0 +1,4 @@
+
+
+ArrayList继承List、RandomAccess、Cloneable、Serializable
+List继承Collection, Collection继承Iterable

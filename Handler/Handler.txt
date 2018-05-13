@@ -70,28 +70,11 @@ Looper在构造时会创建MessageQueue对象mQueue; ActivityThread调用loop函数，进入消息
 handler.sendMessage调用mQueu.enqueueMessage()像消息队列中添加消息，消息的 target对象会保存handler自身。
 
 
+ThreadLocal通过set 方法将Looper保存到当前线程中， ThreadLocal.get()Looper从当前线程取出来。
+所以Handler能够在同一个线程中通信。
 
-
-  
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
+在线程中， Looper.prepare()，Looper.loop() ，通过Looper.myLooper()获取保存到当前线程的Looper。以Looper为构造函数
+创建Handelr，可以实现线程内和线程之间的通信
+===================================================================================================================================   
 ActivityThread启动启动是调用LooperLooper.prepareMainLooper(); 
    
