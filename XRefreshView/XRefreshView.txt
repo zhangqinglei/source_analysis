@@ -1,0 +1,59 @@
+
+
+======================================XRefreshView==========================================
+->构造函数
+   创建内容View管理器XRefreshContentView 
+   mContentView = new XRefreshContentView();
+   创建下拉拖动偏移容器XRefreshHolder
+   mHolder = new XRefreshHolder();
+   //创建Scroller
+   mScroller = new Scroller(getContext(), new LinearInterpolator());
+   //初始化内容
+   initWithContext(context, attrs);
+   
+   
+====================================XRefreshView.initWithContext()==========================
+->添加HeaderView XRefreshViewHeader
+  addHeaderView();
+->设置Header移动的距离
+  setHeadMoveLargestDistence(mHeadMoveDistence);
+  把内容View添加到XRefreshView中
+  attachContentView();
+  添加FooterView
+  addFooterView();
+  
+刚开始只有HeaderView, ContentView和FootView添加都在OnLayout()执行之后
+
+===============================XRefreshView.attachContentView()=============================
+->获取内容View， 添加到mContentView
+  mContentView.setContentView(XRefreshView.this.getChildAt(1));
+->添加父容器
+  mContentView.setContainer(autoLoadMore ? this : null);
+  mContentView.setContentViewLayoutParams(isHeightMatchParent, isWidthMatchParent);
+->添加Holder
+  mContentView.setHolder(mHolder);
+  mContentView.setParent(this);
+->设置ScrollerListener
+  mContentView.setScrollListener();
+  
+================================XRefreshView.getHeaderHeight()===============================
+->获取HeaderView的高度， HeaderView.getMeasuredHeight()
+  mHeaderViewHeight = mHeaderCallBack.getHeaderHeight();
+->getFooterHeight()
+  获取FooterView的高度， FooterView.getMeasuredHeight()
+  
+  
+==============================dispatchTouchEvent()===========================================
+
+->ACTION_UP:
+  当放开是会滑动到Header的高度
+  
+  
+==============================stopRefresh()==================================================
+会更新Header的高度到0
+
+===============================startRefresh()================================================
+更新HeaderView到正式高度
+  
+
+  

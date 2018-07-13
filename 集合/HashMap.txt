@@ -1,0 +1,60 @@
+
+
+==============================================put()====================================
+->put()
+  获取hashCode值
+  根据 hashCode获取hash索引键值， i = (n - 1) & hash
+  如果值为空， 创建新的Node
+  tab[i] = newNode(hash, key, value, null);
+  如果根据索引获取的Node不为空， 且node的key和hashcode等于插入值，
+  把插入值更新为node的value
+  如果node 是TreeNode, 调用TreeNode.putTreeVal(this, tab, hash, key, value)
+  如果没有查找到节点，则创根据key, hashCode, value创建新的节点，在同一key的
+  链表的最后一个节点的next指向node, 如果查找到了，则更新节点的vlue, 同时返回
+  老的节点。
+  
+->如果hash表超出容量了，进行扩容
+  
+  
+  
+  
+====================================ConCurrentHashMap=================================
+参数校验。
+若table[]未创建，则初始化。
+当table[i]后面无节点时，直接创建Node（无锁操作）。
+如果当前正在扩容，则帮助扩容并返回最新table[]。
+然后在链表或者红黑树中追加节点。
+最后还回去判断是否到达阀值，如到达变为红黑树结构。
+
+
+
+
+
+
+
+=========================================ConCurrentHashMap1.7=========================
+Map 的默认容量大小 16， 最大为1 << 30
+static final float DEFAULT_LOAD_FACTOR = 0.75f; //默认加载因子
+static final int DEFAULT_CONCURRENCY_LEVEL = 16; 
+//默认的并发水平，也即segment的数量
+static final int MAX_SEGMENTS = 1 << 16; // 最大的segment的数量
+
+
+Segment : 可重入锁,继承ReentrantLock 也称之为桶
+
+->get()
+  注释1: 根据key计算hash值
+  注释2: 根据计算出的hash值定位segment 如果segment不为null segment.table也不为null 跳转进里面的循环
+  里面的一大段东西 大致讲的就是通过hash值定位segment中对应的HashEntry 遍历HashEntry,如果key存在,返回key对应的value 如果不存在则返回null
+  
+->put()
+  1.判断值是否为null
+  2.计算hash值
+  3.定位segment 如果不存在，则创建
+  4.调用segment的put方法
+  
+->Segment.put()
+  注释1: 获取锁 ，保证线程安全
+  注释2: 定位到具体的HashEntry
+  注释3: 遍历HashEntry链表,如果key已存在 再判断传入的onlyIfAbsent的值 ,再决定是否覆盖旧值
+  

@@ -1,0 +1,23 @@
+
+
+=========================================InternalCacheDiskCacheFactory=======================================
+继承DiskLruCacheFactory
+缓存路径：缓存目录/image_manager_disk_cache
+大小250M
+
+磁盘缓存具体创建是由DiskLruCacheFactory实现
+构造函数
+new CacheDirectoryGetter()
+重写CacheDirectoryGetter类， 重写getCacheDirectory()方法
+getCacheDirectory()方法创建磁盘缓存文件， 
+
+
+============================================DiskLruCacheFactory===============================================
+构造函数
+参数， 磁盘缓存大小diskCacheSize， 和磁盘缓存文件构造器cacheDirectoryGetter
+build()
+->通过磁盘缓存构造器创建磁盘缓存文件
+  File cacheDir = cacheDirectoryGetter.getCacheDirectory();
+  创建返回DiskLruCacheWrapper, DiskLruCacheWrapper继承DiskCache
+  return DiskLruCacheWrapper.get(cacheDir, diskCacheSize)
+

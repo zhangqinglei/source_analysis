@@ -1,0 +1,21 @@
+
+
+=============================================================================
+Scoller.startScroll()
+->设置初始ScrollX, ScrollY, 偏移dx,dy。 根据传入的时间设置差值间隔。每次差值间隔
+  都会根据差值获+Start值， 获取要移动的位置。
+
+Scoller.computeScrollOffset()
+->获取当前时间， 根据差值器获取偏移。 计算当前ScroolX 和ScrollY， 获取ScrollX和
+  ScrollY， 调用View的scrollTo()函数，移动到ScrollX,ScrollY。
+  
+
+ View.invalidate()会触发computeScroll()。 在computeScroll()中调用SCroller.computeScrollOffset()
+ 设置startX和startY, 获取获取ScrollX和ScrollY， 调用View的scrollTo()函数，移动到ScrollX,ScrollY。
+ 然后在调用invalidate()触发computeScroll()直到computeScrollOffset()返回false。
+ 
+ 
+ XRefreshView。计算ContentView是根据ViewCompat.canScrollVertically(view, direction)
+ 计算-1方向是否能滚动，或者ContentView.getScrollY() >0
+ 如果ListView。 这是第一个可见View的位置大于0 absListView.getChildCount() > 0
+                    && (absListView.getFirstVisiblePosition() > 0

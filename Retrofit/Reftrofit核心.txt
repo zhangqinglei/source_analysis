@@ -1,0 +1,10 @@
+
+
+======================================================================================
+Retrofit 在创建ServiceMethod时， 首先遍历CallAdapter.Factory列表，调用get()方法，根据
+method的返回类型找到对应的CallAdapter， 从CallAdapter中，获取返回类型和Method的注解
+遍历Convert.Factory列表，调用responseBodyConverter()方法获取Converter<ResponseBody, T>
+将ResponseBody转化为相对应的类型。 
+
+CallAdapter 调用OKHttpCall 执行exqueue() 方法， 返回ResponseBody， 然后调用Converter将
+ResponseBody转化为具体的Type, 

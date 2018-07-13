@@ -1,0 +1,5 @@
+
+
+//修改AAPT源码，添加--apk-module命令字段， 在ResourceTable构造函数中添加对bundle是否设置判断。 进行资源重命名
+aapt package -f -m --apk-module 0x8f -J gen -S res -M AndroidManifest.xml -I ../../../devTools/android/android-sdk-macosx/platforms/android-23
+/android.jar -F build/out/res.ap_

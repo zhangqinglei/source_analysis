@@ -1,0 +1,35 @@
+
+
+RetryAndFollowUpInterceptor
+    ->在网络请求失败后进行重试
+	  当服务器返回当前请求需要进行重定向时直接发起新的请求，并在条件允许情况下复用当前连接
+	  当请求返回码为3XX, 从响应请求中获取Location, 重定向请求。
+	  当超出一定次数是放弃请求。
+   
+    BridgeInterceptor
+	->设置内容长度，内容编码
+	  设置gzip压缩，并在接收到内容后进行解压。省去了应用层处理数据解压的麻烦
+	  添加cookie
+      设置其他报头，如User-Agent,Host,Keep-alive等。其中Keep-Alive是实现多路复用的必要步骤
+	  如果内容长度 不为空的话 从Body体字段中添加Content-Lenght移除Transfer-Encoding, 
+	  否则移除Content-Length, 添加Transfer-Encoding, 字段值为chunked
+	  如果Range字段为空。 设置Accept-Encoding为gzip。
+	  在返回结果中， 如果Content-Encoding为giz. 通过GzipSource读取数据，设置到Response。
+	  
+	  
+	
+	CacheInterceptor的职责很明确，就是负责Cache的管理
+	->当网络请求有符合要求的Cache时直接返回Cache
+      当服务器返回内容有改变时更新当前cache
+      如果当前cache失效，删除
+   
+    ConnectInterceptor的intercep
+	->即为当前请求找到合适的连接，可能复用已有连接也可能是重新创建的连接，返回的连接由连接池负责决定
+    
+	CallServerInterceptor负责向服务器发起真正的访问请求，并在接收到服务器返回后读取响应返回
+	先将Requestd 请求头部写入，再写入Body体。  设置请求和响应时间戳。如果是204或205响应码且
+	Body体的长度大于0， 设置异常
+	
+	
+==================================================OKHttp连接池=============================================
+在OKHttpClient 类中的静态体中初始化。

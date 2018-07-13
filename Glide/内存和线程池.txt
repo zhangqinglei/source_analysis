@@ -1,0 +1,377 @@
+
+
+======================================MemorySizeCalculator===============================
+->内存大小计算器
+  低内存模式最大内存的0.33倍
+  高内存模式最大内存的0.4倍
+  
+->构造函数
+  计算内存屏幕大小的Bitmap大小
+  final int screenSize = screenDimensions.getWidthPixels() * screenDimensions.getHeightPixels()
+                * BYTES_PER_ARGB_8888_PIXEL;
+
+  计算Bitmap缓存池的大小 4倍大小
+  targetPoolSize = screenSize * BITMAP_POOL_TARGET_SCREENS 4倍
+  计算内存缓冲区大小2倍大小
+  int targetMemoryCacheSize = screenSize * MEMORY_CACHE_TARGET_SCREENS;
+  memoryCacheSize = targetMemoryCacheSize;
+  bitmapPoolSize = targetPoolSize;
+->getMemoryCacheSize()
+  返回内存缓存大小
+  return memoryCacheSize
+->getBitmapPoolSize()
+  获取Bitmap内存缓存大小
+  return bitmapPoolSize;
+  
+  
+=====================================GlideBuilder.createGlide()=============================
+->创建源线程池
+  sourceService = new FifoPriorityThreadPoolExecutor(cores);
+->创建磁盘线程池
+  diskCacheService = new FifoPriorityThreadPoolExecutor(1);
+->创建内存大小计算器
+  MemorySizeCalculator calculator = new MemorySizeCalculator(context);
+->创建Bitmap内存缓冲大小内屏幕尺寸大小Bitmap的4倍
+  bitmapPool = new LruBitmapPool(size);
+->创建内存缓冲， 大小内屏幕尺寸大小Bitmap的2倍
+  memoryCache = new LruResourceCache(calculator.getMemoryCacheSize());
+  LruResourceCache继承LruCache和MemoryCache
+  LruCache里用的是LinkedHashMap保存内存缓存， Key是EngineKey,Resource是EngineResource
+  
+->创建缓冲工厂类
+  diskCacheFactory = new InternalCacheDiskCacheFactory(context);
+  InternalCacheDiskCacheFactory继承了DiskLruCacheFactory， 
+  InternalCacheDiskCacheFactory(context, DiskCache.Factory.DEFAULT_DISK_CACHE_DIR, DiskCache.Factory.DEFAULT_DISK_CACHE_SIZE);
+  DEFAULT_DISK_CACHE_SIZE 250M
+  DEFAULT_DISK_CACHE_DIR  应用的缓存目录/image_manager_disk_cache
+  DiskLruCacheFactory.build()方法创建DiskCache, 返回DiskCache的子类对象DiskLruCacheWrapper
+  
+
+->创建执行引擎
+  engine = new Engine(memoryCache, diskCacheFactory, diskCacheService, sourceService);  
+  
+  
+->Bitmap默认编码格式PREFER_RGB_565
+  decodeFormat = DecodeFormat.DEFAULT;
+  
+  
+==============================================Engine========================================
+->
+  this.cache = cache; MemoryCache
+->把磁盘缓存工厂封装到LazyDiskCacheProvider中, diskCacheFactory是InternalCacheDiskCacheFactory
+  this.diskCacheProvider = new LazyDiskCacheProvider(diskCacheFactory);
+->创建activeResources, 保存EngineResource的弱引用
+  activeResources = new HashMap<Key, WeakReference<EngineResource<?>>>();
+->创建EngineKeyFactory
+  keyFactory = new EngineKeyFactory();
+  
+->创建EngineJobFactory
+  engineJobFactory = new EngineJobFactory(diskCacheService, sourceService, this);
+  
+->添加缓存移除监听
+  cache.setResourceRemovedListener(this);
+  
+
+->getEngineResourceFromCache()
+  从MemoryCache中获取EngineCache
+  Resource<?> cached = cache.remove(key);
+  result = (EngineResource) cached;
+  
+->EngineResource<?> loadFromCache(Key key, boolean isMemoryCacheable)
+  从内存中获取EngineResource
+  EngineResource<?> cached = getEngineResourceFromCache(key);
+  把从内存中获取的EngineResource 保存到activirtyResource
+  activeResources.put(key, new ResourceWeakReference(key, cached, getReferenceQueue()));
+  
+
+=======================================EngineKeyFactory=====================================
+->buildKey()
+  return new EngineKey(id, signature, width, height, cacheDecoder, sourceDecoder, transformation, encoder,
+                transcoder, sourceEncoder);
+================================EngineJobFactory============================================
+->build()方法， 创建EngineJob
+  return new EngineJob(key, diskCacheService, sourceService, isMemoryCacheable, listener);
+  
+  
+=====================================RequestTracker=========================================
+  
+->runRequest(Request)
+  如果没有暂停直接调用Request.begin();
+  request.begin();
+  否则添加到等他队列中
+  pendingRequests.add(request);
+->addRequest(Request)
+  添加请求
+  requests.add(request);
+->removeRequest(Request request) 
+  移除请求
+  requests.remove(request);
+  pendingRequests.remove(request);
+  
+->pauseRequests()
+  暂停请求, 遍历请求，执行暂停
+  for (Request request : Util.getSnapshot(requests)) {
+            if (request.isRunning()) {
+                request.pause();
+                pendingRequests.add(request);
+            }
+        }
+		
+		
+		
+=============================GenericRequestBuilder.into()====================================
+->into(glide.buildImageViewTarget(view, transcodeClass))
+   Glide.buildImageViewTarget(ImageView imageView, Class<R> transcodedClass)
+   transcodedClass是GlideDrawable
+   调用ImageViewTargetFactory根据transcodedClass创建ImageViewTarget子类
+   return imageViewTargetFactory.buildTarget(imageView, transcodedClass);
+   
+   ImageViewTarget的子类包括GlideDrawableImageViewTarget，BitmapImageViewTarget
+   DrawableImageViewTarget
+   
+   
+-><Y extends Target<TranscodeType>> Y into(Y target)
+  获取Target是否存储Request
+  Request previous = target.getRequest();
+  如果保存的话销毁
+  previous.clear();
+  requestTracker.removeRequest(previous);
+  previous.recycle();
+  
+  创建新的Request,保存到Target中，
+  Request request = buildRequest(target);
+  target.setRequest(request);
+  把Target添加到回调中， Target继承LifecycleListener
+  lifecycle.addListener(target);
+  执行请求
+  requestTracker.runRequest(request);
+  
+  
+========================================GenericRequest.begin() onSizeReady()===============================
+->onSizeReady(overrideWidth, overrideHeight);
+  获取Moduleloader ImageVideoModelLoader
+  ModelLoader<A, T> modelLoader = loadProvider.getModelLoader();
+  获取DataFetcher  ImageVideoModelLoader.ImageVideoFetcher
+  final DataFetcher<T> dataFetcher = modelLoader.getResourceFetcher(model, width, height);
+  获取transcoder GifBitmapWrapperDrawableTranscoder
+  ResourceTranscoder<Z, R> transcoder = loadProvider.getTranscoder();
+  加载数据
+  loadStatus = engine.load(signature, width, height, dataFetcher, loadProvider, transformation, transcoder,
+                priority, isMemoryCacheable, diskCacheStrategy, this);
+				
+				
+=================================GenericRequest.onSizeReady()================================
+->状态修改为正在加载
+  status = Status.RUNNING;
+				
+				
+===========================================Engine.load()=====================================
+->首先从 LruCache里获取EngineResource
+  EngineResource<?> cached = loadFromCache(key, isMemoryCacheable);
+  如果EngineResource不为空，直接调用EngineResource.onResourceReady。
+  cb.onResourceReady(cached);
+  
+->然后从activeResources中获取EngineResource
+  EngineResource<?> active = loadFromActiveResources(key, isMemoryCacheable);
+
+->从jobs中获取EngineJob
+  EngineJob current = jobs.get(key);
+
+->通过engineJobFactory创建EngineJob
+  EngineJob engineJob = engineJobFactory.build(key, isMemoryCacheable);
+  
+->创建DecodeJob
+  DecodeJob<T, Z, R> decodeJob = new DecodeJob<T, Z, R>(key, width, height, fetcher, loadProvider, 
+                    transformation, transcoder, diskCacheProvider, diskCacheStrategy, priority);
+
+	transcoder GifBitmapWrapperDrawableTranscoder
+	transformation GifBitmapWrapperTransformation
+	loadProvider ChildLoadProvider
+	fetcher ImageVideoModelLoader.ImageVideoFetcher
+	T ImageVideoWrapper
+	Z GifBitmapWrapper
+	R GlideDrawable
+	 
+   					
+				
+			
+->创建EngineRunnable
+  EngineRunnable runnable = new EngineRunnable(engineJob, decodeJob, priority);
+ 
+->保存EngineJob
+  jobs.put(key, engineJob);
+				
+->engineJob添加GenericRequest作为Callback
+  engineJob.addCallback(cb);
+->执行加载任务， 将EngineRunnable提交到线程池
+  engineJob.start(runnable);
+  future = diskCacheService.submit(engineRunnable);
+  
+============================================EngineRunnable.run()==============================
+
+->获取加载后的Resource<?>
+  resource = decode();
+  resource是GlidBitmapDrawableResource
+  
+->Resource<?> decodeFromSource()
+  return decodeJob.decodeFromSource();
+  
+==========================================DecodeJob.decodeFromSource()========================
+->获取GifBitmapWrapperResource 是Resource<GifBitmapWrapper>
+  Resource<T> decoded = decodeSource();
+->转码成GlidBitmapDrawableResource
+  return transformEncodeAndTranscode(decoded);
+  
+  
+->decodeSource()
+  final A data = fetcher.loadData(priority);
+  A是ImageVideoWrapper
+  ImageVideoFetcher通过HttpUrlFetcher解析url获取InputStream 封装到ImageVideoWrapper中
+  
+->解析数据
+  decoded = decodeFromSourceData(data);
+->decodeFromSourceData()
+  decoded = loadProvider.getSourceDecoder().decode(data, width, height);
+  getSourceDecoder是GifBitmapWrapperResourceDecoder,
+  ChildLoadProvider从FixedLoadProvider中获取，FixedLoadProvider从ImageVideoGifDrawableLoadProvider
+  获取GifBitmapWrapperResourceDecoder，
+  ImageVideoDataLoadProvider
+  
+
+->Resource<GifBitmapWrapper> GifBitmapWrapperResourceDecoder.decode(ImageVideoWrapper source, int width, int height)  
+  调用GifBitmapWrapperResourceDecoder.decode()
+  获取GifBitmapWrapper
+  GifBitmapWrapper wrapper = null;
+  wrapper = decode(source, width, height, tempBytes);
+  GifBitmapWrapper decode(ImageVideoWrapper source, int width, int height, byte[] bytes)
+  封装到GifBitmapWrapperResource中 GifBitmapWrapperResource是Resource<GifBitmapWrapper>类
+  new GifBitmapWrapperResource(wrapper)
+  
+  GifBitmapWrapperResourceDecoder.decode() 获取GifBitmapWrapperResource
+  
+->result = decodeStream(source, width, height, bytes);
+  result是GifBitmapWrapper
+  封装InputStream 到ImageVideoWrapper forBitmapDecoder = new ImageVideoWrapper(bis, source.getFileDescriptor());
+  result = decodeBitmapWrapper(forBitmapDecoder, width, height);
+  GifBitmapWrapper decodeBitmapWrapper(ImageVideoWrapper toDecode, int width, int height)
+  
+->decodeBitmapWrapper(ImageVideoWrapper toDecode, int width, int height)
+  Resource<Bitmap> bitmapResource = bitmapDecoder.decode(toDecode, width, height);
+  
+  调用StreamBitmapDecoder.decode() 获取BitmapResource, 封装到GifBitmapWrapper中
+  result = new GifBitmapWrapper(bitmapResource, null);
+  
+========================================ImageVideoGifDrawableLoadProvider==========================
+->构造函数
+  ImageVideoGifDrawableLoadProvider(DataLoadProvider<ImageVideoWrapper, Bitmap> bitmapProvider,
+            DataLoadProvider<InputStream, GifDrawable> gifProvider, BitmapPool bitmapPool)
+  bitmapProvider是ImageVideoDataLoadProvider
+  gifProvider是GifDrawableLoadProvider
+
+  sourceDecoder = decoder;
+  sourceDecoder是GifBitmapWrapperResourceDecoder
+  
+  cacheDecoder = new FileToStreamDecoder<GifBitmapWrapper>(new GifBitmapWrapperStreamResourceDecoder(decoder));
+  encoder = new GifBitmapWrapperResourceEncoder(bitmapProvider.getEncoder(), gifProvider.getEncoder());
+  sourceEncoder = bitmapProvider.getSourceEncoder();
+  
+  
+=====================================ImageVideoDataLoadProvider=====================================
+->构造函数
+  ImageVideoDataLoadProvider(DataLoadProvider<InputStream, Bitmap> streamBitmapProvider,
+            DataLoadProvider<ParcelFileDescriptor, Bitmap> fileDescriptorBitmapProvider)
+  streamBitmapLoadProvider是StreamBitmapDataLoadProvider
+  fileDescriptorBitmapProvider是FileDescriptorBitmapDataLoadProvider
+  
+  encoder = streamBitmapProvider.getEncoder();
+  sourceEncoder = new ImageVideoWrapperEncoder(streamBitmapProvider.getSourceEncoder(),
+                fileDescriptorBitmapProvider.getSourceEncoder());
+  cacheDecoder = streamBitmapProvider.getCacheDecoder();
+  sourceDecoder = new ImageVideoBitmapDecoder(streamBitmapProvider.getSourceDecoder(),
+                fileDescriptorBitmapProvider.getSourceDecoder());
+
+			
+================================StreamBitmapDataLoadProvider========================================
+->构造函数
+  sourceEncoder = new StreamEncoder();
+  decoder = new StreamBitmapDecoder(bitmapPool, decodeFormat);
+  encoder = new BitmapEncoder();
+  cacheDecoder = new FileToStreamDecoder<Bitmap>(decoder);
+  
+  
+=================================FileDescriptorBitmapDataLoadProvider===============================
+->构造函数  
+  cacheDecoder = new FileToStreamDecoder<Bitmap>(new StreamBitmapDecoder(bitmapPool, decodeFormat));
+  sourceDecoder = new FileDescriptorBitmapDecoder(bitmapPool, decodeFormat);
+  encoder = new BitmapEncoder();
+  sourceEncoder = NullEncoder.get();
+  
+  
+====================================================================================================
+->最终回调到ImageViewTarget.onResourceReady()
+  target.onResourceReady
+  
+  
+=======================================DecodeJob====================================================
+->Resource<Z> transformEncodeAndTranscode(Resource<T> decoded)
+  decoded是GifBitmapWrapperResource
+  Resource<T> transformed = transform(decoded);
+  Resource<T> transformed = transformation.transform(decoded, width, height);
+  transformation是GifBitmapWrapperTransformation
+  
+->transformEncodeAndTranscode()
+  转化为CenterCrop或者FitCenter
+  Resource<T> transformed = transform(decoded);
+  转化为GifBitmapDrawableResource
+  Resource<Z> result = transcode(transformed);
+  
+->Resource<Z> transcode(Resource<T> transformed)
+  transcoder是GifBitmapWrapperDrawableTranscoder
+  GifBitmapWrapperDrawableTranscoder 封装了GlideBitmapDrawableTranscoder
+  
+  
+=======================================================================================================================  
+所有的ModelLoader都要继承ModelLoader接口，重写DataFetcher<Y> getResourceFetcher(T model, int width, int height);
+
+每个ModelLoader都会重写一个工厂类，继承 ModelLoaderFactory<T, Y>， 
+重写ModelLoader<T, Y> build(Context context, GenericLoaderFactory factories); 
+
+所有的Decoder都要继承ResourceDecoder， 重写Resource<Z> decode(T source, int width, int height) throws IOException;
+T是source, Z是将要被转化的结果。
+
+========================================================================================================================
+所有的DataLoadProvider都要继承DataLoadProvider<T, Z> ， 重写 
+ResourceDecoder<File, Z> getCacheDecoder();
+ResourceDecoder<T, Z> getSourceDecoder(); 
+Encoder<T> getSourceEncoder();
+ResourceEncoder<Z> getEncoder();
+T是源，Z是将要被转化的
+======================================================================================================================== 
+所有的Transcoder都要继承ResourceTranscoder<Z, R>， Z是源，R是将要被转化的资源
+重写Resource<R> transcode(Resource<Z> toTranscode);
+
+
+========================================================================================================================
+所有的Transformation都要继承Transformation<T>
+重写Resource<T> transform(Resource<T> resource, int outWidth, int outHeight)
+
+
+=========================================TransformationUtils============================================================
+Bitmap处理的工具类
+centerCrop()
+fitCenter()
+  
+  
+  
+
+  
+   
+
+  
+ 
+  
+  
+  
+  
+  
+  

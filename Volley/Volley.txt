@@ -71,6 +71,48 @@
    return new Response(result, cacheEntry);
 ， StringRequest返回Response<String>数据.
 
+
+======================================BasicNetwork========================================================
+->NetworkResponse performRequest(Request<?> request)
+  重写Network接口中的方法performRequest()
+  调用HttpStack方法中的performRequest(request, headers); 来返回NetworkResponse
+
+  
+==========================================================================================================
+1.BasicNetWork封装HurlStack, Stack 继承HttpStack， 重写HttpStack中的 
+  performRequest(Request<?> request, Map<String, String> additionalHeaders)
+2. RequestQueue封装DiskBaseCache和Stack
+3.Dispatcher封装RequestQueue, Network, 和mDelivery 
+  NetworkDispatcher networkDispatcher = new NetworkDispatcher(mNetworkQueue, mNetwork,
+                    mCache, mDelivery);
+					
+  NetworkResponse networkResponse = mNetwork.performRequest(request);
+  Response<?> response = request.parseNetworkResponse(networkResponse);
+ 
+  mDelivery.postResponse(request, response);
+  
+  
+  
+===========================================================================================================
+1. HttpStack.performRequest(Request<?> request)
+   ->创建HttpURLConnection, 设置SSLSocketFactory
+     HttpURLConnection connection = openConnection(parsedUrl, request);
+	 
+	 1. 将返回的的Hrader字段， 设置到BasicHeader中， response.addHeader(h)
+	    将header设置到HttpResponse中。
+     2. 创建BasicHttpEntity， 将InputStream， Content响应字段设置到entiy中。将Entity设置到HttpResponse中
+	    
+	    entity.setContent(inputStream);
+        entity.setContentLength(connection.getContentLength());
+        entity.setContentEncoding(connection.getContentEncoding());
+        entity.setContentType(connection.getContentType());
+		response.setEntity(entity)
+		把OKHttp，的InputStream设置到entity中。
+		
+2. 在BasicNetwork 中调用HttpStack执行performRequest(), 获取HttpResponse。
+3. 自定义Request,  重写Request的parseNetworkResponse(),从NetworkResponse 中取出数据，填写相应的数据结构。
+   重写deliverResponse()， 调用Listener回调onResponse。
+		
 	
    
    

@@ -1,0 +1,8 @@
+
+
+
+ThreadLocal 的set()方法， 获取当前线程， 根据当前线程获取当前线程中保存的map,
+如果map为空的话为当前线程创建map。以ThreadLocal自身为key, 将Value保存的Thread的
+map中。
+
+ThreadLocal的get()方法。 获取当前线程， 以自身为Key查找value。

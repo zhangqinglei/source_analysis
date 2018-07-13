@@ -62,6 +62,12 @@ GenericRequestBuilder(Context context, Class<ModelType> modelClass,
 ->into(Y target)
   target继承Target接口
   glide.buildImageViewTarget(view, transcodeClass)
+  获取之前的请求， 如果之前的请求不为空， 回收之前的请求
+  Request previous = target.getRequest();
+  previous.clear();
+  requestTracker.removeRequest(previous);
+  previous.recycle();
+  
   创建GenericRequest，
   Request request = buildRequest(target);
   把创建的Request保存到ViewTarget中ImageView中的Target 
@@ -147,6 +153,16 @@ GenericRequestBuilder(Context context, Class<ModelType> modelClass,
   
   loadStatus = engine.load(signature, width, height, dataFetcher, loadProvider, transformation, transcoder,
                 priority, isMemoryCacheable, diskCacheStrategy, this);
+				
+				
+================================================RequestTracker================================================
+->runRequest(Request request)
+  请求添加到请求列表中
+  requests.add(request);
+  如果没暂停，开始加载图片
+  如果暂停添加到暂停队列
+  pendingRequests.add(request);
+  
 
 ==============================================================================================================
 buildProvider(glide, streamModelLoader, fileDescriptorModelLoader, GifBitmapWrapper.class, GlideDrawable.class, null)
@@ -260,6 +276,10 @@ ImageViewTarget有GlideDrawableImageViewTarget，BitmapImageViewTarget和Drawabl
   final A data = fetcher.loadData(priority);
   A是ImageVideoWrapper
   通过ImageVideoModelLoader获取ImageVideoFetcher， ImageVideoFetcher中获取InputStream, 封装在ImageVideoWrapper中
+  
+  获取ModuleLoader
+  ModelLoader<A, T> modelLoader = loadProvider.getModelLoader();
+  
   
   
   

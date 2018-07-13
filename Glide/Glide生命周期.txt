@@ -198,13 +198,16 @@ Resource<Bitmap> transform(Resource<Bitmap> resource, int outWidth, int outHeigh
   
 ===============================================GifBitmapWrapperTransformation============================================
 Resource<GifBitmapWrapper> transform(Resource<GifBitmapWrapper> resource, int outWidth, int outHeight)
-
+resource是GifBitmapWrapperResource
 ->获取Resouce<Btimap> 
   Resource<Bitmap> bitmapResource = resource.get().getBitmapResource();
   resource.get()获取GifBitmapWrapper
   GifBitmapWrapper.getBitmapResource()获取Resouce<Btimap>
   Resource<Bitmap> transformed = bitmapTransformation.transform(bitmapResource, outWidth, outHeight);
+  先调用CenterCrop的父类Transformation的transform(Resource<T> resource, int outWidth, int outHeight)
+  在调用子类的 Bitmap transformed = transform(bitmapPool, toTransform, targetWidth, targetHeight);
   bitmapTransformation是CenterCrop和FitCenterh
+  
   
 GifBitmapWrapperTransformation包装了CenterCrop或者FitCenterh
   
@@ -217,8 +220,56 @@ Glide执行流程
 活ModelLoader 封装到DrawableTypeRequest中。
 ->into创建Request。 执行Request
 
+
+=============================================EngineRunnable===============================================================
+->run()
+  获取GifBitmapDrawResource
+  resource = decode();
+  回调成功, 回调的是EngineJob.
+  onLoadComplete(resource);
+  
+->onLoadComplete()
+  调用EngineJob的onResourceReady()方法
+  manager.onResourceReady(resource);
+
+==========================================EngineJob=======================================================================
+->onResourceReady(final Resource<?> resource)
+  GifBitmapDrawResource
+  this.resource = resource;
+  MAIN_THREAD_HANDLER.obtainMessage(MSG_COMPLETE, this).sendToTarget();
+  
+  创建EngineResource
+  engineResource = engineResourceFactory.build(resource, isCacheable);
+  
+  回调每一个GenericRequest请求
+  for (ResourceCallback cb : cbs) {
+            if (!isInIgnoredCallbacks(cb)) {
+                engineResource.acquire();
+                cb.onResourceReady(engineResource);
+            }
+  }
   
   
+==========================================GenericRequest.============================
+->onResourceReady(Resource<?> resource)
+  resource是EngineResource, 封装了GlideBitmapDrawableResource
+  获取GlideBitmapDrawable received是GlideBitmapDrawable
+  Object received = resource.get();
+  回调
+  onResourceReady(resource, (R) received);
+  
+->onResourceReady(Resource<?> resource, R result)
+  result是GlideBitmapDrawable
+  调用GlideBitmapDrawableTarget.onResourceReady(result, animation);
+  target.onResourceReady(result, animation);
+  
+  
+========================================GlideDrawableImageViewTarget=================
+->onResourceReady(GlideDrawable resource, GlideAnimation<? super GlideDrawable> animation)
+  调用父类加载图片
+  super.onResourceReady(resource, animation);
+  setResource(resource);
+  view.setImageDrawable(resource);
 
 
 

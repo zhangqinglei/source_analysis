@@ -300,7 +300,7 @@ ImageViewTarget继承BaseTarget， BaseTarget继承Target， Target继承LifecycleListen
 
    
 ===========================================FixedLoadProvider=================================================================
-dataLoadProvider ImageVideoGifDrawableLoadProvider
+dataLoadProvider ImageVideoGifDrawableLoadProvider, 在Glide 中dataType 是ImageVideoWrapper， ResourceType 是GifBitmapWrapper
 ImageVideoGifDrawableLoadProvider封装了ImageVideoDataLoadProvider， ImageVideoDataLoadProvider被封装到GifBitmapWrapperResourceDecoder
 中，FixedLoadProvider.getSourceDecoder.decode()调用ImageVideoGifDrawableLoadProvider的soureceDecoder (GifBitmapWrapperResourceDecoder)
 soureceDecoder.decode()通过调用ImageVideoDataLoadProvider中提供的sourceDecoder ImageVideoBitmapDecoder进行解析数据。

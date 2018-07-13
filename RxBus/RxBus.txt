@@ -16,7 +16,8 @@ AnnotatedFinder.findAllSubscribers(Object listener)
   Class<?> listenerClass = listener.getClass();
   Map<EventType, Set<SubscriberEvent>> subscribersInMethod = new HashMap<>();
 ->Map<EventType, Set<SourceMethod>> methods = SUBSCRIBERS_CACHE.get(listenerClass);
-  class作为关键之获取里面注册的方法，如果methods为空，查找订阅方法
+  SUBSCRIBERS_CACHE是Map<String, Map<EventType, Set<SourceMethod>>类型
+  class作为关键之获取里面注册的方法，如果methods为空，则在监听类中查找注册事件
   methods = new HashMap<>();
   loadAnnotatedSubscriberMethods(listenerClass, methods);
   
@@ -27,6 +28,8 @@ AnnotatedFinder.loadAnnotatedSubscriberMethods(Class<?> listenerClass, Map<Event
  Map<EventType, SourceMethod> producerMethods = new HashMap<>();
  loadAnnotatedMethods(listenerClass, producerMethods, subscriberMethods);
 ->从subscriberMethods获取SourceMethod, 获取Method method和EventThread thread封装到SubscriberEvent中, 
+  thread 类型有MAIN_THREAD， NEW_THREAD，IO，COMPUTATION等
+  EventType是由Subscriber注解中的Tag和注册方法中的参数生成Key
 ->subscribers.add(new SubscriberEvent(listener, m.method, m.thread));
 ->将subscribers保存到subscribersInMethod中
   subscribersInMethod.put(e.getKey(), subscribers);
@@ -67,3 +70,11 @@ SourceMethod包含线程类型thread和接口method对象。Set<SourceMethod>以
  SUBSCRIBERS_CACHE以 listenerClass为Key保存subscriberMethods
  
  根据Post() 根据post参数和tag创建EventType 根据EventType 获取Set<SubscriberEvent>， 
+ 
+ 
+ 
+由Tag 和注册接口的参数生成EventType, 根据EventType把Set<SourceMethod>保存到Map<EventType, Set<SourceMethod>>中，
+遍历Map<EventType, Set<SourceMethod>>和Set<SourceMethod>，根据监听类ListenerClass和EventType, SourceMethod生成
+SubscriberEvent, 保存到以EventType为Key的Map中。
+
+===================================SubscriberEvent.handle()============================================

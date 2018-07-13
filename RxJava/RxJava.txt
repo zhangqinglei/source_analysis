@@ -1,0 +1,31 @@
+
+
+
+==========================================Observable======================================================
+RxJavaObservableExecutionHook hook = RxJavaPlugins.getInstance().getObservableExecutionHook();
+
+RxJavaObservableExecutionHook getObservableExecutionHook()
+
+Observable.create()方法
+->hook.onCreate(f) 
+  直接返回OnSubscribe<T>对象， 封装到Observer对象 
+  new Observable<T>(hook.onCreate(f))
+构造函数
+->直接把OnSubscribe<T>的对象封装到Observer中。
+   this.onSubscribe = f;
+   
+->subscribe(Subscriber<? super T> subscriber)
+  Observable.subscribe(subscriber, this);
+  先回到subscriber.onStart();
+  回调hook.onSubscribeStart(observable, observable.onSubscribe).call(subscriber);
+  回调OnSubscribe.call()方法
+
+   
+  
+
+
+==========================================RxJavaPlugins.getObservableExecutionHook()======================
+通过反射创建RxJavaObservableExecutionHook对象
+
+
+

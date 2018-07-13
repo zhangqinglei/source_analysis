@@ -3,24 +3,24 @@
 
 
 2. OkHttpClient.Builder类
-   -> dispatcher = new Dispatcher(); //DefaultSocketFactory
-      protocols = DEFAULT_PROTOCOLS; //HTTP1.1 
-      connectionSpecs = DEFAULT_CONNECTION_SPECS;
-      proxySelector = ProxySelector.getDefault(); //class java.net.ProxySelectorImpl
-      cookieJar = CookieJar.NO_COOKIES;
-      socketFactory = SocketFactory.getDefault();
-      hostnameVerifier = OkHostnameVerifier.INSTANCE;
-      certificatePinner = CertificatePinner.DEFAULT;
-      proxyAuthenticator = Authenticator.NONE;
-      authenticator = Authenticator.NONE;
-      connectionPool = new ConnectionPool();
-      dns = Dns.SYSTEM;
-      followSslRedirects = true;
+   -> dispatcher = new Dispatcher(); 		            //DefaultSocketFactory 默认分发
+      protocols = DEFAULT_PROTOCOLS;                    //HTTP1.1    默认协议
+      connectionSpecs = DEFAULT_CONNECTION_SPECS;       //默认请求ConnectionSpec
+      proxySelector = ProxySelector.getDefault();       //class java.net.ProxySelectorImpl 
+      cookieJar = CookieJar.NO_COOKIES;                 //Cookie
+      socketFactory = SocketFactory.getDefault();       //默认SocketFactory
+      hostnameVerifier = OkHostnameVerifier.INSTANCE;   //
+      certificatePinner = CertificatePinner.DEFAULT;    //Certificate
+      proxyAuthenticator = Authenticator.NONE;          //代理认证授权
+      authenticator = Authenticator.NONE;               //服务器认证授权
+      connectionPool = new ConnectionPool();            //连接池
+      dns = Dns.SYSTEM;                                 //Dns
+      followSslRedirects = true;             
       followRedirects = true;
       retryOnConnectionFailure = true;
-      connectTimeout = 10_000;
-      readTimeout = 10_000;
-      writeTimeout = 10_000;
+      connectTimeout = 10_000;                          //链接超时
+      readTimeout = 10_000;                             //读取超时
+      writeTimeout = 10_000;                            //写入超时
 	  
 	  
 3.  OkHttpClient.Builder.build()方法
@@ -178,8 +178,159 @@ ResponseBody.string()
   通过Source读取数据
   
   
+===============================================Address======================================================
+->构造函数
+  Address(String uriHost, int uriPort, Dns dns, SocketFactory socketFactory,
+      SSLSocketFactory sslSocketFactory, HostnameVerifier hostnameVerifier,
+      CertificatePinner certificatePinner, Authenticator proxyAuthenticator, Proxy proxy,
+      List<Protocol> protocols, List<ConnectionSpec> connectionSpecs, ProxySelector proxySelector)
+	  
+
+===========================================StreamAllocation==================================================
+->构造函数
+  this.connectionPool = connectionPool;
+  this.address = address;
+  this.routeSelector = new RouteSelector(address, routeDatabase());
+  this.callStackTrace = callStackTrace;
+  
+->HttpCodec newStream(OkHttpClient client, boolean doExtensiveHealthChecks)
+  RealConnection resultConnection = findHealthyConnection(connectTimeout, readTimeout,
+          writeTimeout, connectionRetryEnabled, doExtensiveHealthChecks);
+      HttpCodec resultCodec = resultConnection.newCodec(client, this);
+	  
+->RealConnection findHealthyConnection(int connectTimeout, int readTimeout,
+      int writeTimeout, boolean connectionRetryEnabled, boolean doExtensiveHealthChecks)
+  RealConnection candidate = findConnection(connectTimeout, readTimeout, writeTimeout,
+          connectionRetryEnabled);
+		  
+  
+->RealConnection findConnection(int connectTimeout, int readTimeout, int writeTimeout,
+      boolean connectionRetryEnabled)
+  result = new RealConnection(connectionPool, selectedRoute);
+  
+  
+  
+==========================================RealInterceptorChain================================================
+->proceed()
+  每次根据索引获取Inteceptor, 同时增加索引，封装到新的 RealInterceptorChain中，获取的Inteceptor，调用intercept()
+  方法，执行真正的网络操作，在Inteceptor.intercept()方法中会调用传进去的RealInterceptorChain.proceed()执行下一个
+  Interceptor, 知道Inteceptor列表执行完成
+  
+  
+->OKHttp的实际操作是由HttpCode1, 2来执行真正的网络请求
+
+->
+
+
+
+========================================RetryAndFollowUpInterceptor.intercept()==============================
+在死循环中重复请求。直道请求成功或者超过最大请求数限制， 超过最大请求数限报出异常。
+
+1. 创建StreamAllocation
+2. 网络请求的时候回产生路由请求网络异常和IO请求网络异常
+3. followUpRequest()处理网络请求结果
+   获取响应状态码：String method = userResponse.request().method();   
+   1. HTTP_PROXY_AUTH : 407 代理认证失败 HTTP Status-Code 407: Proxy Authentication Required.
+      继续请求认证
+	  client.proxyAuthenticator().authenticate(route, userResponse)
+   2. HTTP_UNAUTHORIZED ： 401 服务器认证授权失败 HTTP Status-Code 401: Unauthorized
+      继续请求服务器认证授权
+	  client.authenticator().authenticate(route, userResponse)
+   3. HTTP_PERM_REDIRECT : 308
+      HTTP_TEMP_REDIRECT : 307
+	  请求重定向，status code, 307: 必须是GET活HEAD方法才能重定向
+   4. HTTP_CLIENT_TIMEOUT： 请求超时，HTTP Status-Code 408: Request Time-Out
+      
+	如果是UnrepeatableRequestBody， 则报HttpRetryException异常
+	
+	
+===================================BridgeInterceptor.intercept()==============================================
+1. 获取请求的Body体， RequestBody body = userRequest.body();
+   1. 获取Content-Type 类型加载到header中
+      requestBuilder.header("Content-Type", contentType.toString());
+   2. 获取Content-Length, 加载到header中， 如果contentLeth小于0，设置Transfer-Encoding为chunked
+      contentLength = body.contentLength()
+	  requestBuilder.header("Content-Length", Long.toString(contentLength));
+	  requestBuilder.header("Transfer-Encoding", "chunked");
+	  
+2. 设置Request
+   1. 设置Host requestBuilder.header("Host", hostHeader(userRequest.url(), false));
+   2. 设置 Connection   equestBuilder.header("Connection", "Keep-Alive");
+   3. 设置Accept-Encoding requestBuilder.header("Accept-Encoding", "gzip");
+   4. 设置Cookie requestBuilder.header("Cookie", cookieHeader(cookies));
+   5. 设置UserAngent requestBuilder.header("User-Agent", Version.userAgent());
+   
+3. 请求处理 Response networkResponse = chain.proceed(requestBuilder.build());
+
+
+======================================CacheInterceptor.intercept()===========================================
+1. 根据请求策略设置cacheResponse，如果服务器返回 HTTP_NOT_MODIFIED 304响应码，直接返回缓存中的响应， 关闭网络
+   请求响应。否则把服务器的响应更新到缓存中，同时返回cacheResponse。
    
    
+=======================================ConnectInterceptor.intercept()========================================
+
+1. 获取StreamAllocation streamAllocation = realChain.streamAllocation();
+2. 创建HttpCodec httpCodec = streamAllocation.newStream(client, doExtensiveHealthChecks);
+3. 创建网络链接RealConnection connection = streamAllocation.connection();
+
+
+============================================StreamAllocation==================================================     
+   
+1. HttpCodec newStream(OkHttpClient client, boolean doExtensiveHealthChecks)
+   1. 获取网络请求超时
+      int connectTimeout = client.connectTimeoutMillis();
+      int readTimeout = client.readTimeoutMillis();
+      int writeTimeout = client.writeTimeoutMillis();
+      boolean connectionRetryEnabled = client.retryOnConnectionFailure();
+   2. 创建链接
+      RealConnection resultConnection = findHealthyConnection(connectTimeout, readTimeout,
+          writeTimeout, connectionRetryEnabled, doExtensiveHealthChecks);
+	  创建HttpCodec
+	  HttpCodec resultCodec = resultConnection.newCodec(client, this);
+	  HttpCodec1.newCodec()
+	  设置socket和Okio的超时时间， 封装到HttpCodec中。
+	  socket.setSoTimeout(client.readTimeoutMillis());
+      source.timeout().timeout(client.readTimeoutMillis(), MILLISECONDS);
+      sink.timeout().timeout(client.writeTimeoutMillis(), MILLISECONDS);
+	  return new Http1Codec(client, streamAllocation, source, sink);
+	  
+	 
+	  
+	  
+2. RealConnection findConnection()
+   1. 创建RealConnection 对象result = new RealConnection(connectionPool, selectedRoute);
+   2. 创建网络链接， 这个比较耗时
+      result.connect(connectTimeout, readTimeout, writeTimeout, connectionRetryEnabled);
+	  
+	  
+=====================================RealConnection===========================================================
+RealConnection.connect() 创建Socket,并将Socket于Okio 的Sorce 和Sink绑定。
+
+1. connect(int connectTimeout, int readTimeout, int writeTimeout, boolean connectionRetryEnabled)
+   创建Socket链接
+   connectSocket(connectTimeout, readTimeout);
+2. connectSocket(connectTimeout, readTimeout)
+   1. 获取代理和网络地址
+      Proxy proxy = route.proxy();
+      Address address = route.address();
+   2. 创建Socket 
+      rawSocket = proxy.type() == Proxy.Type.DIRECT || proxy.type() == Proxy.Type.HTTP
+        ? address.socketFactory().createSocket()
+        : new Socket(proxy);
+   3. 设置Socket 超时时间
+      rawSocket.setSoTimeout(readTimeout);
+   4. 创建Soceket链接
+      Platform.get().connectSocket(rawSocket, route.socketAddress(), connectTimeout);
+   5. 将Socket与Okio捆绑
+      source = Okio.buffer(Okio.source(rawSocket));
+      sink = Okio.buffer(Okio.sink(rawSocket));
+	  
+=====================================CallServerInterceptor.intercept()========================================
+
+     
+	  
+      
    
    
    

@@ -138,6 +138,8 @@
 3. Picasso.load(String url)
     ->如果url为空创建RequestCreator return new RequestCreator(this, uri, 0);
 	->否则return this.load(Uri.parse(path));
+	load()方法的作用是根据Uri创建RequestCreator对象， RequestCreator对象的成员变量data RequestCreator.Builder用于创建
+	Request.
 
 3. RequestCreator构造函数
    -> 如果Picasso关闭(shutdown)抛出异常
@@ -145,7 +147,8 @@
      this.data = new Builder(uri, resourceId, picasso.defaultBitmapConfig);
 
 4. RequestCreator.into(ImageView target) 
-   ->如果build变量检测到图片不为空，取消请求， 获取Drawable赋给ImageView PicassoDrawable.setPlaceholder(target, this.getPlaceholderDrawable());
+   ->如果build变量检测到图片不为空，取消请求， 获取PlaceHolder Drawable赋给ImageView 
+     PicassoDrawable.setPlaceholder(target, this.getPlaceholderDrawable());
    ->从LruCache中获取bitmap, 如果不为空删除请求直接复制给ImageView。
    ->创建Request Request request1 = this.createRequest(started);
      ->获取Key String requestKey1 = Utils.createKey(request1);
@@ -307,7 +310,11 @@ BitmapHunter.run()
 result = hunt();
 
 BimtmapHunter.hunt()
-->获取result, 通过NetworkRequestHandler获取
+
+->首先从内存中的缓存获取， 如果成功的话直接返回。
+  bitmap = cache.get(key);
+  loadedFrom = MEMORY;
+->否则从从requestHandler获取result, 通过NetworkRequestHandler获取
   RequestHandler.Result result = requestHandler.load(data, networkPolicy);
 ->从result中获取InputStream is
   InputStream is = result.getStream();
@@ -335,6 +342,75 @@ UrlConnectionDownloader.load()
   connection.setUseCaches(true);
 ->将InputStream封装到Response中
   return new Response(connection.getInputStream(), fromCache, contentLength);
+  
+  
+===================================Dispatcher=================================================
+->handler.sendMessage(handler.obtainMessage(HUNTER_COMPLETE, hunter));
+  BitmapHunter hunter = (BitmapHunter) msg.obj;
+  dispatcher.performComplete(hunter);
+->performComplete(BitmapHunter hunter)
+  缓存加载结果 Bitmap
+  if (shouldWriteToMemoryCache(hunter.getMemoryPolicy())) {
+      cache.set(hunter.getKey(), hunter.getResult());
+  }
+  从hunterMap移除BitmapHunter
+  hunterMap.remove(hunter.getKey());
+  batch(hunter);
+  
+->batch(BitmapHunter hunter)
+  如果没删除添加到batch中
+  if (hunter.isCancelled()) {
+      return;
+  }
+  batch.add(hunter);
+  dispatcher.performBatchComplete();
+ 
+->performBatchComplete()
+  拷贝batch列表, 通过mainThreadHandler发送到主线程， Picasso中
+  mainThreadHandler.sendMessage(mainThreadHandler.obtainMessage(HUNTER_BATCH_COMPLETE, copy));
+  
+  
+====================================mainHandler.HUNTER_BATCH_COMPLETE===========================
+->遍历batch，完成加载
+  for (int i = 0, n = batch.size(); i < n; i++) {
+     BitmapHunter hunter = batch.get(i);
+     hunter.picasso.complete(hunter);
+  }
+  
+->complete(BitmapHunter hunter) 
+  获取Action
+  Action single = hunter.getAction();
+  加载图片
+  deliverAction(result, from, single);
+  
+->deliverAction(Bitmap result, LoadedFrom from, Action action) 
+  
+=======================================ImageViewAction=========================================
+->complete(Bitmap result, LoadedFrom from)
+  获取ImageView
+  ImageView target = (ImageView)this.target.get();
+  把Bitmap设置的ImageView中
+  PicassoDrawable.setBitmap(target, context, result, from, this.noFade, indicatorsEnabled);
+  
+  PicassoDrawable drawable = new PicassoDrawable(context, bitmap, placeholder, loadedFrom, noFade, debugging);
+  target.setImageDrawable(drawable);
+  
+  
+=====================================BitmapHunter.forRequest==================================
+
+
+
+=====================================Picasso==================================================
+->构造函数
+  allRequestHandlers添加各种RequestHandler，执行实际的加载任务
+  allRequestHandlers.add(new ContactsPhotoRequestHandler(context));
+  allRequestHandlers.add(new MediaStoreRequestHandler(context));
+  allRequestHandlers.add(new ContentStreamRequestHandler(context));
+  allRequestHandlers.add(new AssetRequestHandler(context));
+  allRequestHandlers.add(new FileRequestHandler(context));
+  allRequestHandlers.add(new NetworkRequestHandler(dispatcher.downloader, stats));
+  
+
   
   
 RequestCreator调用Picasso,Picasso调动Dispatcher.submit(Action),Dispatcher中创建

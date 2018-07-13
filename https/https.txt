@@ -1,0 +1,91 @@
+
+==============================https加载证书的过程==================================================
+1. 初始化证书工厂
+   CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+2. 创建KeyStore
+   KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+   keyStore.load(null);
+3. 读取证书
+   String certificateAlias = Integer.toString(index++);
+   keyStore.setCertificateEntry(certificateAlias, certificateFactory.generateCertificate(certificate));
+4. 创建信任列表工厂
+   TrustManagerFactory trustManagerFactory = 
+            TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+5. 添加信任列表
+   trustManagerFactory.init(keyStore);
+6. 创建SSLContext上下文
+   SSLContext sslContext = SSLContext.getInstance("TLS");
+   
+7. sslContext.init(   
+                null, 
+                trustManagerFactory.getTrustManagers(), 
+                new SecureRandom());
+   初始化上下文
+   
+   
+   
+构造CertificateFactory对象，通过它的generateCertificate(is)方法得到Certificate。
+然后讲得到的Certificate放入到keyStore中。
+接下来利用keyStore去初始化我们的TrustManagerFactory
+由trustManagerFactory.getTrustManagers获得TrustManager[]初始化我们的SSLContext
+最后，设置我们mOkHttpClient.setSslSocketFactory即可。
+
+
+https安全的http协议是建立在SSL层或TLS层上的http协议，在普通的传输层和http应用层之间插入SSL或TLS安全层。 
+https使用非对称加密进行加密秘钥协商，采用对称加密方式对报文进行加密处理以保证安全性 
+https不同于http，使用443端口作为默认端口，建立TCP连接后，会初始化SSL层，对加密参数进行沟通并交换秘钥
+
+
+
+
+===================================================================================================
+
+
+
+public static String post(String httpsUrl, String params) {  
+        String result = null;  
+        try {  
+            URL url = new URL(httpsUrl); // 解析httpsUrl，生成url对象  
+            SSLContext sslctxt = SSLContext.getInstance("TLS"); // 为请求通TLS协议，生成SSLContext对象  
+            // 初始化SSLContext  
+            sslctxt.init(null, new TrustManager[] { new MyX509TrustManager() },  
+                    new java.security.SecureRandom());  
+  
+            HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();  
+  
+            conn.setSSLSocketFactory(sslctxt.getSocketFactory());  
+            conn.setHostnameVerifier(new MyHostnameVerifier());  
+            conn.setDoInput(true);  
+            conn.setDoOutput(true);  
+            conn.setRequestMethod("POST");  
+            conn.setUseCaches(false);  
+            conn.connect();  
+  
+            conn.getOutputStream().write(params.getBytes());  
+            conn.getOutputStream().flush();  
+            conn.getOutputStream().close();  
+  
+            int respCode = conn.getResponseCode();  
+            Log.d(TAG, "ResponseCode=" + respCode);  
+            if(respCode == 200) {  
+                InputStream input = conn.getInputStream();  
+                result = toString(input);  
+                input.close();  
+            }  
+        } catch (MalformedURLException e) {  
+            // TODO Auto-generated catch block  
+            e.printStackTrace();  
+        } catch (IOException e) {  
+            // TODO Auto-generated catch block  
+            e.printStackTrace();  
+        } catch (KeyManagementException e) {  
+            // TODO Auto-generated catch block  
+            e.printStackTrace();  
+        } catch (NoSuchAlgorithmException e) {  
+            // TODO Auto-generated catch block  
+            e.printStackTrace();  
+        }  
+        return result;  
+    }  
+	
+	

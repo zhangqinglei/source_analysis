@@ -1,0 +1,49 @@
+
+
+================================
+->注解生成
+  ARouter$$Root.模块名 继承IRouteRoot
+  ARouter$$Group 继承IRouteGroup
+  ARouter$$Providers$$模块名 继承IProviderGroup
+   
+
+
+
+==============================ARouter.init()====================================================
+->
+  LogisticsCenter.init(mContext, executor);
+  
+  
+===============================LogisticsCenter.init()===========================================
+->保存Context和线程池
+  mContext = context;
+  executor = tpe;
+
+
+=============================ARouter.getInstance().build()======================================
+->调用_ARouter 的build()方法
+  _ARouter.getInstance().build(path)
+  
+  
+->获取Service
+  PathReplaceService pService = ARouter.getInstance().navigation(PathReplaceService.class);
+  
+  
+===============================<T> T navigation(Class<? extends T> service)=====================
+->T是IProvider类型
+  Postcard postcard = LogisticsCenter.buildProvider(service.getName());
+  
+  
+
+======================LogisticsCenter.buildProvider(String serviceName)=========================
+->创建路由元素
+  RouteMeta meta = Warehouse.providersIndex.get(serviceName);
+  
+->创建PostCard
+  return new Postcard(meta.getPath(), meta.getGroup());
+  
+  
+====================================loadInto(Map<String, RouteMeta> providers)==================
+->创建RouteMeta， 保存到providers中， providers是Warehouse.providersIndex
+  providers.put("AutowiredService", RouteMeta.build(RouteType.PROVIDER, AutowiredServiceImpl.class, "/arouter/service/autowired", "arouter", (Map)null, -1, -2147483648));
+  providers.put("InterceptorService", RouteMeta.build(RouteType.PROVIDER, InterceptorServiceImpl.class, "/arouter/service/interceptor", "arouter", (Map)null, -1, -2147483648));

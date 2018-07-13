@@ -1,0 +1,45 @@
+
+
+锁的类型
+1.可重入锁
+  Synchronized和ReentrantLock都是重如锁
+2.可中断锁
+  
+3.公平锁
+  公平锁即尽量以请求锁的顺序来获取锁。比如同是有多个线程在等待一个锁，当这个锁被释放时，等待时间最久的线程（最先请求的线程）会获得该所，这种就是公平锁。
+  非公平锁即无法保证锁的获取是按照请求锁的顺序进行的。这样就可能导致某个或者一些线程永远获取不到锁。
+  在Java中，synchronized就是非公平锁，它无法保证等待的线程获取锁的顺序。
+  而对于ReentrantLock和ReentrantReadWriteLock，它默认情况下是非公平锁，但是可以设置为公平锁。
+  
+4.读写锁
+　　读写锁将对一个资源（比如文件）的访问分成了2个锁，一个读锁和一个写锁。
+　　正因为有了读写锁，才使得多个线程之间的读操作不会发生冲突。
+　　ReadWriteLock就是读写锁，它是一个接口，ReentrantReadWriteLock实现了这个接口。
+　　可以通过readLock()获取读锁，通过writeLock()获取写锁。
+
+
+1、同步锁　　
+　　同一时刻，一个同步锁只能被一个线程访问。以对象为依据，通过synchronized关键字来进行同步，实现对竞争资源的互斥访问。
+
+2、独占锁（可重入的互斥锁）　
+　　互斥，即在同一时间点，只能被一个线程持有；可重入，即可以被单个线程多次获取。什么意思呢？根据锁的获取机制，
+     它分为“公平锁”和“非公平锁”。Java中通过ReentrantLock实现独占锁，默认为非公平锁。
+
+3、公平锁　
+　是按照通过CLH等待线程按照先来先得的规则，线程依次排队，公平的获取锁，是独占锁的一种。Java中，ReetrantLock中有一个Sync类型的成员变量sync，
+   它的实例为FairSync类型的时候，ReetrantLock为公平锁。设置sync为FairSync类型，只需——Lock lock = new ReetrantLock(true)。
+
+4、非公平锁　
+　是当线程要获取锁时，它会无视CLH等待队列而直接获取锁。ReetrantLock默认为非公平锁，或——Lock lock = new ReetrantLock(false)。
+
+5、共享锁　　　　
+　 能被多个线程同时获取、共享的锁。即多个线程都可以获取该锁，对该锁对象进行处理。典型的就是读锁——ReentrantReadWriteLock.ReadLock。
+   即多个线程都可以读它，而且不影响其他线程对它的读，但是大家都不能修改它。CyclicBarrier， CountDownLatch和Semaphore也都是共享锁。
+
+6、读写锁　　
+　 维护了一对相关的锁，“读取锁”用于只读操作，它是“共享锁”，能同时被多个线程获取。“写入锁”用于写入操作，它是“独占锁”，只能被一个线程锁获取。
+   Java中，读写锁为ReadWriteLock 接口定义，其实现类是ReentrantReadWriteLock，包括内部类ReadLock和WriteLock。方法readLock()、writeLock()
+   分别返回度操作的锁和写操作的锁。
+
+  
+  

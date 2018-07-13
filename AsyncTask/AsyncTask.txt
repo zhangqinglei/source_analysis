@@ -60,6 +60,8 @@
 	mFuture是FutureTask类变量。 sDefaultExecutor.execute()的作用是将mFuture封装到Runnable中， 将封装的Runnable对象添加到队列mWorks中，
 	，同时不断从mWorks中取出Runnable对象执行mFuture的run()方法。
 	mWorkRunnble()执行，会调用doInBackground()方法， doInBackground()执行完后会执行postResult(result);回调执行结果.
+	
+	execute()将添加到任务队列中， 然后从任务队列中取出任务提交到线程池中执行，执行完一个之后从队列中取出下一个执行。
    
    
    

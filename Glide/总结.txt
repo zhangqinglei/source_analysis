@@ -1,0 +1,116 @@
+
+
+1. 生命周期管理， 
+   创建Fragment添加到Activity中，利用Fragment的生命周期管理Glide的网络请求的生命周期。
+   
+2. Glide构造函数
+   初始化Engine, 缓存，loaderFactory，DataLoadProvider, 各种ModelLoader.Factory, 
+   Transcoder, BitmapTransformation。
+   
+ 
+3. DataLoadProvider， 用于包装 Decoder和Encoder, 
+   Decoder根据传过来的流将流解析成ResourceBitmap
+   
+4. ModelLoaderFactory ModelLoader的工厂类，其build()用于创建ModelLoader.
+   
+5. ModelLoader的getResourceFetcher()方法用于创建DataFetcher类
+   DataFetcher的作用是将ModeType穿过来的数据类型转化成文件流(InputStream)
+
+6. DataFetcher的loadData()通过Decoder加载数据。
+
+7. Transcoder 用于转化数据 ResourceTranscoder transcode()方法，用于将Bitmap或者GifBitmapWrapper转化为
+   Drawable对象。
+   
+7. BitmapTransformation。 调整图片的对齐方式。
+
+8. GenericRequestBuilder.into(ImageViewTarge), 在into()方法中创建GenericRequest。lifeCycle将ImageViewTarget
+   加载控制其生命周期。lifecycle.addListener(target);
+   ReqeuestTracker, 执行GernricRequest。在onSizeReady()中调用engine.load()
+   Engine.load()中创建DecodeJob, EngineJob和EngineRunnable, EngineJob添加GenericRequest作为Callback回调。
+   GenericRequest继承了ResourceCallback， 重写onResourceReady()， EngineJob调用start()方法执行EngineRunnable任务。
+   将EngineRunnable扔进线程池执行，EngineRunnable调用DecodeJob.decode()方法。
+   的decode()执行图片下载。下载执行完，回调onLoadComplete(resource).
+   
+   通过DataProvider中的SourceDecoder.decode()加载数据。
+   
+   
+9. DrawableTypeRequest继承DrawableRequestBuilder， DrawableRequestBuilder继承GenericRequestBuilder
+   
+10 buildProvider() 
+   1. 创建transcoder 是GlideBitmapDrawableTranscoder，关键字是GifBitmapWrapper和GlideDrawable
+      把GifBitmapWrapper转化为GlideDrawable对象，GlideDrawable继承Drawable
+	  GlideBitmapDrawableTranscoder封装了GlideBitmapDrawableTranscoder， GlideBitmapDrawableTranscoder
+	  的作用是把Bitmap封装成GlideDrawable
+	  
+   2. dataLoadProvider是ImageVideoGifDrawableLoadProvider， ImageVideoGifDrawableLoadProvider包装了
+      ImageVideoDataLoadProvider， 
+	  ImageVideoGifDrawableLoadProvider的decoder是GifBitmapWrapperResourceDecoder， 封装了ImageVideoBitmapDecoder
+	  ImageVideoBitmapDecoder封装了StreamBitmapDecoder和FileDescriptorBitmapDecoder
+	  ImageVideoGifDrawableLoadProvider的SoureceEncoder是GifBitmapWrapperResourceEncoder， 封装了
+	  ImageVideoWrapperEncoder， ImageVideoWrapperEncoder封装了StreamEncoder和FileDescriptorBitmapEncoder
+	  
+   3. modelLoader是ImageVideoModelLoader，ImageVideoModelLoader封装了
+   
+12. decodeFromSource()
+    Resource<T> decoded = decodeSource() decoded是GifBitmapWrapperResource。封装了 GifBitmapWrapper。
+	GifBitmapWrapper封装了BtimapResource。
+	A data = fetcher.loadData(priority) data是ImageVideoWrapper，封装了InputStream。
+	fetcher是ImageVideoFetcher。
+	loadProvider.getSourceDecoder()， 是ImageVideoGifDrawableLoadProvider.getSourceDecoder(), 
+	调用GifBitmapWrapperResourceDecoder， 
+	
+	
+	
+	
+13. decodeFromSourceData()
+    decoded = loadProvider.getSourceDecoder().decode(data, width, height);
+	decoded是GifBitmapWrapperResource
+	GifBitmapWrapperStreamResourceDecoder 调用ImageVideoBitmapDecoder的decode()方法。 
+	data是ImageVideoWrapper，
+	decodeBitmapWrapper()
+	获取BitmapResource封装到GifBitmapWrapper,
+	bitmapDecoder.decode(toDecode, width, height)
+	bitmapDecoder是ImageVideoBitmapDecoder
+	result = new GifBitmapWrapper(bitmapResource, null);
+	
+	result = streamDecoder.decode(is, width, height);
+	streamDecoder是StreamBitmapDecoder
+	通过网络解析获取Bitmap
+	Bitmap bitmap = downsampler.decode(source, bitmapPool, width, height, decodeFormat);
+	BitmapResource.obtain(bitmap, bitmapPool);
+	
+14. transformEncodeAndTranscode()
+    根据转换成CenterCrop, FitCenter.再转化为GlideDrawable.
+	
+15. EngineRunnable.onLoadComplete(resource)
+    resource是GifBitmapWrapperResource
+	通过主线程调用EngineJob.onResourceReady() 封装成EngineResource. 在回调GenericRequest.onResourceReady()
+	
+16. GenericRequest.onResourceReady(result, animation)
+    调用target.onResourceReady(result, animation)
+	target是GlideDrawableImageViewTarget。
+	调用setResource(resource). 设置Drawable对象。
+	
+	
+	
+17. 执行过程，
+    DrawableRequestBuilder继承GenericRequestBuilder。在into()方法中创建GenericRequest, 执行GernricRequest的
+	begin()->onSizeReady()方法, 执行Engine.load()方法， load方法中创建EngineJob, DecodeJob, 和EngineRunnable
+	， EngineJob执行start()方法将EngineRunnable扔进线程池执行。EngineRunnable， 执行图片的下载。执行完后
+	回调EngineJob.onResourceReady()->GenericRequest.onResourceReady()。 在GenericRequest中调用
+	lideDrawableImageViewTarget.onResourceReady()将GlideDrawable设置到ImageView中。\
+	
+	
+	
+	
+	
+========================================================================================================
+decodeSource()
+->
+   A data = fetcher.loadData(priority)
+	  
+	  
+
+   
+   
+   

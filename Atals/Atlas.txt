@@ -1,0 +1,108 @@
+
+1.BaseDexClassLoader重写了findClass（）。其实就是从DexPathList中找dexFile，然后使用
+  dexFile.findClass(className)（native c++方法）,所以这里的classloader加载的是dex，不是class字节码
+
+
+2.Android中可以使用的CLassLoader有PathClassLoader和DexClassLoader，PathClassLoader只能加载dex文件，
+  我们安装apk之后会在/data/dalvik-cache目录下生产一个名为data@app@com.hujiang.xxx-1.apk@classes.dex的 
+  ODEX 文件，而PathClassLoader要加载apk的时候会到这个文件夹下找对应的dex文件。而DexClassLoader可以加载
+  apk，dex，jar文件，就是被用来实现动态加载机制，加载一个外部的apk文件，实现完全解耦的模块式开发
+  
+3. AndFix就是直接使用DexFile直接加载的dex文件，而没有使用DexClassLoader
+
+
+  public BaseDexClassLoader(String dexPath, File optimizedDirectory,
+            String libraryPath, ClassLoader parent) {
+        super(parent);
+        this.pathList = new DexPathList(this, dexPath, libraryPath, optimizedDirectory);
+  }
+
+3.DexPathList的构造函数的核心代码如下：
+  this.dexElements = makeDexElements(splitDexPath(dexPath), optimizedDirectory,
+                                           suppressedExceptions);
+										    
+  makeDexElements()就是解析dex文件成对应的DexElement
+  
+
+====================================BridgeApplicationDelegate=================================
+->构造函数
+  获取PathClassLoader中的dexElement, 删除包含插件的Element
+  mRawApplication = rawApplication; 应用的Application
+  mCurrentProcessname = processname;
+  mInstalledVersionName = installedVersion;
+  mInstalledVersionCode = versioncode;
+  mLastUpdateTime = lastupdatetime;
+  mIsUpdated = isUpdated;
+  mApkPath = apkPath;
+  mdexLoadBooster = dexLoadBooster;
+  
+  
+========================BridgeApplicationDelegate.attachBaseContext()=========================
+->hook Android各种类、方法和变量
+  AtlasHacks.defineAndVerify();
+->赋值相关变量
+  RuntimeVariables.androidApplication = mRawApplication;
+  RuntimeVariables.originalResources = mRawApplication.getResources();
+  RuntimeVariables.sCurrentProcessName = mCurrentProcessname;
+  RuntimeVariables.sInstalledVersionCode = mInstalledVersionCode;
+  RuntimeVariables.sAppLastUpdateTime = mLastUpdateTime;
+  RuntimeVariables.sApkPath = mApkPath;
+  RuntimeVariables.delegateResources = mRawApplication.getResources();
+  RuntimeVariables.sDexLoadBooster = mdexLoadBooster;
+
+->Atlas.getInstance().init(mRawApplication, mIsUpdated);
+  
+  
+==================================AtlasHacks.defineAndVerify()================================
+->hook各种类，方法和变量
+  allClasses();
+  ->ActivityThread = Hack.into("android.app.ActivityThread");
+    Resources = Hack.into(Resources.class);
+    allConstructors();
+    allFields();
+    ActivityThread_mInstrumentation = ActivityThread.field("mInstrumentation").ofType(Instrumentation.class);
+    allMethods();
+    ActivityThread_currentActivityThread = ActivityThread.method("currentActivityThread");
+	
+	
+================================Atlas.init()==================================================
+->获取PathClassLoader,  cl是PathClassLoader
+  ClassLoader cl = Atlas.class.getClassLoader();
+  Framework.systemClassLoader = cl;      
+  DelegateClassLoader newClassLoader = new DelegateClassLoader(cl);
+  DelegateClassLoader包装PathClassLoader。
+  RuntimeVariables.delegateClassLoader = newClassLoader;
+->通过反射注册DelegateClassLoader, 注入到LoadApk中。
+  AndroidHack.injectClassLoader(packageName, newClassLoader);
+->Hook Instrumentation, 通过反射注入到 ActivityThread中的Instrumentation。
+  InstrumentationHook通过ActivityBridge修改Intent,然后再调用Instrumentation的execStartActivty().
+  AndroidHack.injectInstrumentationHook(new InstrumentationHook(
+       AndroidHack.getInstrumentation(), application.getBaseContext()));
+	   
+->通过反射修改ActivityManagerNative.
+  ActivityManagerDelegate activityManagerProxy = new ActivityManagerDelegate();
+  gDefault=AtlasHacks.ActivityManager_IActivityManagerSingleton.get(AtlasHacks.ActivityManager.getmClass());
+  AtlasHacks.Singleton_mInstance.hijack(gDefault, activityManagerProxy);
+  
+->Hook ActivityThread中的Handler mH变量， 修改Handler回调， 修改加载和启动过程.
+  AndroidHack.hackH();
+  Hack.HackedField<Object, Object> ActivityThread_mH = AtlasHacks.ActivityThread.field("mH").ofType(H.getmClass());
+  final Handler handler = (Handler) ActivityThread_mH.get(activityThread);
+  Field field = Handler.class.getDeclaredField("mCallback");
+  field.setAccessible(true);
+  field.set(handler,new ActivityThreadHook(activityThread,handler));
+  
+->Atlas 核心是劫持PathClassLoader， ActivityManagerNative， Instrumentation和ActivityThread中的 mH变量，
+  分别是DelegateClassLoader，ActivityManagerDelegate，InstrumentationHook和ActivityThreadHook
+  
+=========================================DelegateClassLoader===================================
+->重写ClassLoader的findClass()方法。
+  findClass()
+  首先重bundle中加载Class
+  clazz = loadFromInstalledBundles(className, true);
+  如果没有的话，在从原生中加载class
+  
+	   
+	   
+  
+

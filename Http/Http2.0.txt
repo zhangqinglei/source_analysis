@@ -1,0 +1,12 @@
+
+部压缩、Server Push、多路复用
+
+http/2的特点：
+新的二进制格式
+多路复用
+header压缩
+支持server push
+
+http/2和spdy的区别:
+http/2支持http传输、spdy只支持https
+http/2和spdy的header压缩算法不同

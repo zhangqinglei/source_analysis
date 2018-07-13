@@ -1,0 +1,16 @@
+
+
+Error和Exception 都继承了Throwable
+
+1、Error类层次描述了Java运行时系统的内部错误和资源耗尽错误。对于这类错误是无法难通过程序来解决的，
+   所以程序不应该抛出这种类型的对象。如果出现了这样的内部错误，除了通知给用户，并尽力使程序安全地
+   终止。当然这类情况是很少出现的
+   
+2. 在设计Java程序时，Exception是我们需要重点关注的错误，在Java程序中Exception又可以分为两类：
+   Runtime Exception、其它异常如：IOException。
+   
+3. Runtime Exception 和Error是不受异常检查的
+   1、派生于Runtime Exception 的异常主要包含以下几种情况 
+      错误的类型转换
+      数组访问越界
+      访问空指针

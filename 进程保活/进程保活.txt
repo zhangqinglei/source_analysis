@@ -1,0 +1,24 @@
+
+
+思路一：API < 18，启动前台Service时直接传入new Notification()；
+思路二：API >= 18，同时启动两个id相同的前台Service，然后再将后启动的Service做stop处理；
+
+
+if (Build.VERSION.SDK_INT < 18) {
+            startForeground(GRAY_SERVICE_ID, new Notification());//API < 18 ，此方法能有效隐藏Notification上的图标
+        } else {
+            Intent innerIntent = new Intent(this, GrayInnerService.class);
+            startService(innerIntent);
+            startForeground(GRAY_SERVICE_ID, new Notification());
+        }
+		
+		
+dumpsys activity services PackageName
+
+进程的oom_adj越大，表示此进程优先级越低，越容易被杀回收；越小，表示进程优先级越高，越不容易被杀回收
+普通app进程的oom_adj>=0,系统进程的oom_adj才可能<0
+
+
+app退到后台时，其所有的进程优先级都会降低。但是UI进程是降低最为明显的，因为它占用的内存资源最多，
+系统内存不足的时候肯定优先杀这些占用内存高的进程来腾出资源。所以，为了尽量避免后台UI进程被杀，
+需要尽可能的释放一些不用的资源，尤其是图片、音视频之类的。

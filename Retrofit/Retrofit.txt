@@ -143,6 +143,45 @@ callAdapter = createCallAdapter();
 responseType = callAdapter.responseType();
 创建Converter.
 responseConverter = createResponseConverter();
+
+
+
+===================================RxJavaCallAdapterFactory=================================================
+继承 CallAdapter.Factory， 重写CallAdapter<?> get(Type returnType, Annotation[] annotations, Retrofit retrofit)
+方法。
+
+->get(Type returnType, Annotation[] annotations, Retrofit retrofit)
+  创建CallAdapter 
+  CallAdapter<Observable<?>> callAdapter = getCallAdapter(returnType, scheduler);
+  
+->getCallAdapter(returnType, scheduler)
+  return new SimpleCallAdapter(observableType, scheduler);
+  SimpleCallAdapter继承CallAdapter<Observable<?>>
+  Observable<R> adapt(Call<R> call)
+  Observable<R> observable = Observable.create(new CallOnSubscribe<>(call))
+  return observable;
+  通过CallOnSubscribe来访问OKHttpCall, 返回执行回调执行结果
+  
+
+====================================ServiceMethod==========================================================
+->build() 
+  创建CallAdapter
+  callAdapter = createCallAdapter()
+  //创建Converter
+  responseConverter = createResponseConverter();
+  
+->createCallAdapter()
+  retrofit.callAdapter(returnType, annotations)
+  
+遍历Retrofit中重写的CallAdapter.Factory, 获取重写的CallAdapter
+重写的CallAdapter.adapt()方法会封装OKHttpCall, 执行实际的请求。
+  
+  
+======================================Retrofit.callAdapter()===============================================
+遍历CallAdapter.Factory ，调用Factory.get()方法返回CallAdapter
+
+
+  
  
 
 
@@ -156,6 +195,29 @@ OKHttpCall封装了创建的ServiceMethod, 通过解析注册生成响应的Http请求响应。
 OKHttpCall.createRawCall() 调用Request request = serviceMethod.toRequest(args)生成Request.
 
 CallAdapter是适配对象适配器。可以将Call封装到不同的数据结构中。
+
+
+ExecutorCallAdapterFactory继承CallAdapter.Factory, 重写get方法，返重写的CallAdapter。CallAdapter。 
+重写的CallAdapter中的CallAdapter.adapt(Call call)把OKHttp 的Call封装到ExecutorCallbackCall， 
+ExecutorCallbackCall调用OKHttp的Call执行真正的网络请求。
+
+
+============================================================================================================
+1. Retrofit.Builder.build()
+   ->创建callFactory 实际是OKhttpClient，ExecutotCallAdapterFactory。和Execurtor 实际是MainThreadExecutor.
+    封装到Retrofit中。
+  
+2. Retorfit.create()通过代理的方式创建ServiceMethod, 创建OKHttpCall, 封装到ExecutorCallAdapterFactort重写的
+   CallAdapter中， 将OKHttpCall封装到ExecutorCallbackCall中
+
+
+3. ServiceMethod.Builder.build()
+->callAdapter = createCallAdapter(); 遍历的List<CallAdapter.Factory> adapterFactories， 查找相应的
+  CallAdapter。
+  
+3. 主要是重写CallAdapter.Factory. 在 CallAdapter.Factory返回重写的CallAdapter. CallAdapter的adpt()
+   方法将会被重写， 将真正的OKHttpCall封装到CallAdapter的adpt(), 将要返回的类型中。执行的过程中
+   将会调用OKHttpCall去执行真正的网络请求。
 
 
    

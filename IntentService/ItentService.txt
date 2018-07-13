@@ -1,0 +1,5 @@
+
+
+在InentService的onCreate()方法中创建HandelrThread。获取HandlerThread的Looper. 创建Handeler。
+以后每次请求都会走onStartCommands() ，调用Handeler 发送消息回调onHandleIntent()方法，实际是Handelr
+包消息发送到HandlerThread中执行。 所有的回调都是在子线程中执行的。

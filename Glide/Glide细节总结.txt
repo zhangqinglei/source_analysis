@@ -1,0 +1,20 @@
+
+1. Glide磁盘缓存策略分为四种,默认的是RESULT(默认值这一点网上很多文章都写错了,但是这一点很重要):
+   1.ALL:缓存原图(SOURCE)和处理图(RESULT)
+   2.NONE:什么都不缓存    
+   3.SOURCE:只缓存原图(SOURCE)
+   4.RESULT:只缓存处理图(RESULT) —默认值
+   
+2. Glide的内存缓存其实涉及到比较多的计算,这里就介绍最重要的一个参数,就是内存缓存最大空间
+   内存缓存最大空间(maxSize)=每个进程可用的最大内存 * 0.4
+   (低配手机的话是: 每个进程可用的最大内存 * 0.33)
+
+3. 磁盘缓存大小: 250 * 1024 * 1024(250MB)
+
+4. 磁盘缓存目录: 项目/cache/image_manager_disk_cache
+
+5. 6.1清除所有缓存
+   清除所有内存缓存(需要在Ui线程操作)   
+   Glide.get(this).clearMemory();
+   清除所有磁盘缓存(需要在子线程操作)
+   Glide.get(MainActivity.this).clearDiskCache();

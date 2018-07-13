@@ -1,0 +1,11 @@
+1.通过直接更改view的left,top,right,bottom的方法(瞬间改变)
+
+layout():改变了left,top,right,bottom，并在setFrame()中调用---invalidate()---onSizeChanged(newWidth, newHeight, oldWidth, oldHeight);---invalidate()---r.set--- p.invalidateChild(this, r);
+
+offsetLeftAndRight()：正数向右移动，负数向左移动
+
+offsetTopAndBottom()：正数向下移动，负数向上移动
+
+5.offsetTopAndBottom(20)
+
+正数向下移动，负数向上移动

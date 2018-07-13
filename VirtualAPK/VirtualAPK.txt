@@ -31,6 +31,8 @@ realExecStartActivity()
    result = (ActivityResult)ReflectUtil.invoke(Instrumentation.class, mBase,
             "execStartActivity", parameterTypes, who, contextThread, token, target, intent, requestCode, options);
 			
+   在realExecStartActivity()会调用PluginManager解析intent, 设是否插件的Intent
+			
 ->newActivity()
   获取插件， 
   LoadedPlugin plugin = this.mPluginManager.getLoadedPlugin(intent);
@@ -65,6 +67,39 @@ realExecStartActivity()
   回调Application.onCreate()
   instrumentation.callApplicationOnCreate(this.mApplication);
   
+  
+->LoadedPlugin构造函数
+  this.mPluginManager = pluginManager;
+        this.mHostContext = context; //宿主的Context
+        this.mLocation = apk.getAbsolutePath(); //插件的路径
+		创建插件的PackageInfo
+        this.mPackage = PackageParserCompat.parsePackage(context, apk, PackageParser.PARSE_MUST_BE_APK);
+        this.mPackage.applicationInfo.metaData = this.mPackage.mAppMetaData;
+        this.mPackageInfo = new PackageInfo();
+        this.mPackageInfo.applicationInfo = this.mPackage.applicationInfo;
+        this.mPackageInfo.applicationInfo.sourceDir = apk.getAbsolutePath();
+        this.mPackageInfo.signatures = this.mPackage.mSignatures;
+        this.mPackageInfo.packageName = this.mPackage.packageName;
+        if (pluginManager.getLoadedPlugin(mPackageInfo.packageName) != null) {
+            throw new RuntimeException("plugin has already been loaded : " + mPackageInfo.packageName);
+        }
+        this.mPackageInfo.versionCode = this.mPackage.mVersionCode;
+        this.mPackageInfo.versionName = this.mPackage.mVersionName;
+        this.mPackageInfo.permissions = new PermissionInfo[0];
+        this.mPackageManager = new PluginPackageManager();
+        this.mPluginContext = new PluginContext(this);
+        this.mNativeLibDir = context.getDir(Constants.NATIVE_DIR, Context.MODE_PRIVATE);
+        this.mResources = createResources(context, apk);
+        this.mAssets = this.mResources.getAssets();
+        this.mClassLoader = createClassLoader(context, apk, this.mNativeLibDir, context.getClassLoader());
+		
+		
+		
+->加载资源， 创建AssetManager, 通过反射的方式将插件的路径加载到 新的AssetManager中，
+  把AssetManager封装到Resource中。
+  
+  
+  
 ===============================================LoadedPlugin============================================
 ->构造函数
   创建插件的ClassLoader
@@ -88,7 +123,55 @@ PluginManager在构造函数时候初始化VAInstrumentation, hookSystemServices
 原理获取ActivityThread里的Instrumentation和 Handler中的Callback, 封装到VAInstrumentation
 把VAInstrumentation设置到ActivityThread和Handler中。VAInstrumentation继承Instrumentation和
 Handler.Callback。 通过反射调用Instrumentation和Handler.Callback。ClassLoader是插件的ClassLoader
+加载完插件后会创建插件的Application, 回调Application中的onCreate()方法。
 
+
+=========================================hookSystemServices()=========================================
+->通过反射从ActivityManagerNative 类中获取 IActivityManager变量gDefault
+  通过代理的方式ActivityManagerProxy hook住IActivityManager里方法， 从hook的方法中获取方法名"startService".equals(method.getName())
+  从PluginManager中获取具体信息，ResolveInfo resolveInfo = this.mPluginManager.resolveService(target, 0);
+  从PluginManager中获取ContextImpl执行startService方法 mPluginManager.getHostContext().startService(wrapperIntent)
+  
+  
+  
+=======================================VAInstrumention================================================
+->hook LAUNCH_ACTIVITY 
+->根据Intent 找到插件，生成插件的Activity, 回调插件的onCreate()函数。
+
+
+
+=====================================PluginManager====================================================
+->prepare()
+  hook Instrumentation, ActivityThread.mH.mCallback.和IActivityManager
+  
+->loadPlugin(File apk)
+  加载插件， 
+  LoadedPlugin, 加载插件信息，创建DexClassLoader，把获取的Element，与应用的Element[]合并
+  
+  
+=================================LoadedPlugin.createResources()========================================
+->创建Resource, 并通过Hook 替换Resource
+  Resources resources = new ResourcesManager().createResources(context, apk.getAbsolutePath());
+  ResourcesManager.hookResources(context, resources);
+
+==================ResourcesManager.createResources(Context hostContext, String apk)====================
+->获取插件的Resource    
+  Resources hostResources = hostContext.getResources();
+->定义新的Resource和AssetManager        
+  Resources newResources = null;
+  AssetManager assetManager;
+->获取宿主的AssetManager
+  assetManager = hostResources.getAssets();
+->通过反射将插件路径加载到新的AssetManager中。
+  ReflectUtil.invoke(AssetManager.class, assetManager, "addAssetPath", apk);
+->把其他插件的资源也加载到AssetManager中。
+  List<LoadedPlugin> pluginList = PluginManager.getInstance(hostContext).getAllLoadedPlugins();
+  for (LoadedPlugin plugin : pluginList) {
+      ReflectUtil.invoke(AssetManager.class, assetManager, "addAssetPath", plugin.getLocation());
+  }
+  
+->创建新的Resource
+  newResources = new Resources(assetManager, hostResources.getDisplayMetrics(), hostResources.getConfiguration());
   
   
     

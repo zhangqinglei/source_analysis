@@ -1,0 +1,35 @@
+
+
+===================================EngineJob.handleResultOnMainThread()=======================================
+->创建EngineResource对象
+  engineResource = engineResourceFactory.build(resource, isCacheable);
+->Engine回调
+  listener.onEngineJobComplete(key, engineResource);
+  listener是Engine
+  
+->回调其他处理结果
+  for (ResourceCallback cb : cbs) {
+            if (!isInIgnoredCallbacks(cb)) {
+                engineResource.acquire();
+                cb.onResourceReady(engineResource);
+            }
+        }
+		
+============================Engine.onEngineJobComplete(Key key, EngineResource<?> resource) =================
+->把EngineResource加入到activeResources中，
+  activeResources.put(key, new ResourceWeakReference(key, resource, getReferenceQueue()));
+->从Engine的jobs中移除EngineJob
+  jobs.remove(key);
+ 
+=================================GenericRequest.onResourceReady()============================================  
+->resource是EngineResource， EngineResource 包装GlideBitmapDrawableResource, 
+  GlideBitmapDrawableResource包装了GlideBitmapDrawable
+ Object received = resource.get();
+ received实际是GlideBitmapDrawable
+ 
+====================================== onResourceReady(Resource<?> resource, R result)========================
+->保存resource到成员变量中
+  this.resource = resource;
+->把GlideDrawable 通过target设置到ImageView中。
+  target.onResourceReady(result, animation);
+  target是GlideDrawableImageViewTarget

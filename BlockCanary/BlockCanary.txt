@@ -4,6 +4,9 @@
 BlockCanary的思想是在Main Looper里添加自定义Printer，重写Printer的println()接口。在Looper的loop()方法
 里调用Printer.println()接口。 在重写的println()里统计耗时时间。确定卡顿。
 
+早BlockCanary.start() 将LooperMonitor设置到Looper总
+Looer.getMainLooper().setMessageLogging(monitor);
+
 
 =========================================BlockCanary.start()==================================================
 ->获取MainLooper 设置printer

@@ -33,6 +33,10 @@ mField.setAccessible(true);
 mScroller = new BannerScroller(viewPager.getContext());
 mScroller.setDuration(scrollTime);
 mField.set(viewPager, mScroller);
+
+
+
+
  
  
 
